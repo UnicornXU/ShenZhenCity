@@ -1,6 +1,6 @@
 # 深圳 · 山海之城
 
-可在浏览器中旋转、缩放和浏览的深圳 3D 城市沙盘，使用 Three.js 构建，包含十区（含大鹏新区）的 16 处地标及建筑群、坂田片区，以及程序生成的楼宇街区、海湾、山体绿地、道路、桥梁、树木、船只和移动车流。
+可在浏览器中旋转、缩放和浏览的深圳 3D 城市沙盘，使用 Three.js 构建，包含十区（含大鹏新区）的 16 处地标及建筑群、坂田片区，以及程序生成的楼宇街区、近岸浅海与水深过渡、红树林潮滩、岛礁、海浪、船只和移动车流。
 
 ## 启动
 
@@ -57,6 +57,8 @@ npm run dev
 建筑形态参考：[KPF / 平安金融中心](https://www.kpf.com/project/ping-an-finance-centre)、[KPF / 中国华润大厦](https://www.kpf.com/news/exhibit-staged-in-shenzhens-latest-kpf-designed-tower)、[Farrells / 京基 100 项目资料](https://beltandroad.hktdc.com/sites/default/files/2021-11/TFP%20Farrells%20Project%20Presentations_English%20Version_0.pdf)、[CTBUH / 地王大厦](https://www.skyscrapercenter.com/build/shun-hing-square/258)、[深圳新闻网 / 市民中心](https://www.sznews.com/photo/content/mb/2018-05/28/content_19206231_2.htm)、[深圳市政府 / 深圳湾体育中心](https://www.sz.gov.cn/en_szgov/life/sports/content/post_1351427.html)、[gmp / 大运中心](https://www.gmp.de/en/projects/531/universiade-2011-sports-center)、[Mecanoo / 龙岗文化中心](https://www.mecanoo.nl/Projects/project/65/Three-Cultural-Centers-One-Book-Mall)。参考照片未作为模型纹理打包。
 
 新增八组模型的来源、保留特征与简化边界见 [建筑参考说明](architecture-references.md)，应用内的详情卡也可直接打开相应建筑参考页面。
+
+滨海模型参考了[深圳湾红树林与海滨通道](sea-coast-references.md)、大沙河入海口及大鹏湾岛礁影像；在程序化场景中对应为浅海水深渐变、碎浪、潮滩红树林、河口水道、岛礁和船舶尾迹。图片仅从原始发布页在线查看，不复制进模型或项目运行资源。
 
 **这是艺术化、压缩比例的城市模型，不是深圳真实 GIS、测绘或导航模型。** 地标位置、建筑比例、道路拓扑、海岸线、山体与城区标注均为示意；其他建筑由固定随机种子生成。界面中的建筑和树木数量为场景对象统计，不代表深圳的城市统计。
 

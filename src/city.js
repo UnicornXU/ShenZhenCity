@@ -121,12 +121,13 @@ export class ShenzhenCity {
 
   makeTerrain() {
     const g = this.layers.terrain;
-    this.waterMaterial = material('#8fbbb8', { roughness: 0.5, metalness: 0.18 });
+    this.seaSurfaceY = -0.55;
+    this.waterMaterial = material('#347f88', { roughness: 0.46, metalness: 0.12 });
     const base = new THREE.Mesh(new THREE.BoxGeometry(430, 5, 275), material('#739a91'));
     base.position.set(40, -4.6, -52.5);
     base.receiveShadow = true;
     g.add(base);
-    this.box(g, 40, -1.9, -52.5, 430, 0.5, 275, this.waterMaterial, false);
+    this.box(g, 40, this.seaSurfaceY - 0.25, -52.5, 430, 0.5, 275, this.waterMaterial, false);
 
     const landGeo = new THREE.ExtrudeGeometry(shapeFromXZ(coast), { depth: 2.6, bevelEnabled: true, bevelSize: 0.9, bevelThickness: 0.5, bevelSegments: 2, steps: 1 });
     landGeo.rotateX(-Math.PI / 2);
@@ -135,7 +136,11 @@ export class ShenzhenCity {
     land.receiveShadow = true;
     g.add(land);
     this.curve(g, shoreline.map(([x, z]) => [x, 0.1, z]), 0.58, material('#ebe4cd'), 140);
-    this.curve(g, shoreline.map(([x, z]) => [x, -1.4, z + 2]), 0.22, material('#c3ded5'), 140);
+    this.curve(g, shoreline.map(([x, z]) => [x, -0.43, z + 5]), 0.22, material('#85c1b7'), 140);
+    this.makeCoastalWater(g);
+    this.makeSeaSurfaceDetails(g);
+    this.makeOuterIslands(g);
+    this.makeMangroveWetland();
 
     const bottom = new THREE.Mesh(new THREE.PlaneGeometry(2400, 2400), material('#e9efeb'));
     bottom.rotation.x = -Math.PI / 2;
@@ -192,18 +197,181 @@ export class ShenzhenCity {
     this.scene.add(grid);
     this.grid = grid;
 
-    // Long, quiet wave strokes keep the bay readable without a costly water pass.
-    const waveGeo = [];
-    for (let i = 0; i < 85; i++) {
-      const x = this.random() * 278 - 139;
-      const z = 16 + this.random() * 61;
-      if (isLand(x, z - 4)) continue;
-      const geo = new THREE.BoxGeometry(1.5 + this.random() * 4, 0.015, 0.12);
-      geo.translate(x, -1.62, z);
-      waveGeo.push(geo);
+  }
+
+  makeCoastalWater(parent) {
+    const coastCurve = new THREE.CatmullRomCurve3(shoreline.map(([x, z]) => new THREE.Vector3(x, 0, z)), false, 'centripetal');
+    const steps = 220;
+    const offsets = [0, 2.2, 5.5, 10, 18, 29];
+    const levels = [0.02, -0.06, -0.2, -0.36, -0.49, this.seaSurfaceY + 0.015];
+    const palette = ['#94c3b1', '#81b9ad', '#6ba9a6', '#53979c', '#3e858e', '#347f88'].map(color => new THREE.Color(color));
+    const positions = [], colors = [], indices = [];
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const point = coastCurve.getPoint(t);
+      const tangent = coastCurve.getTangent(t).normalize();
+      // shoreline is traversed east-to-west, so this normal points offshore (south).
+      const nx = tangent.z, nz = -tangent.x;
+      const length = Math.hypot(nx, nz) || 1;
+      for (let row = 0; row < offsets.length; row++) {
+        positions.push(point.x + nx / length * offsets[row], levels[row], point.z + nz / length * offsets[row]);
+        const color = palette[row];
+        colors.push(color.r, color.g, color.b);
+      }
     }
-    if (waveGeo.length) g.add(new THREE.Mesh(mergeGeometries(waveGeo), material('#bdd7ce')));
-    waveGeo.forEach(geo => geo.dispose());
+    for (let i = 0; i < steps; i++) for (let row = 0; row < offsets.length - 1; row++) {
+      const a = i * offsets.length + row, b = a + offsets.length, c = a + 1, d = b + 1;
+      indices.push(a, b, c, c, b, d);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    geo.setIndex(indices);
+    geo.computeVertexNormals();
+    const shelf = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.62, metalness: 0.04, side: THREE.DoubleSide }));
+    shelf.name = '深圳湾至大鹏湾_近岸浅海与水深渐变';
+    shelf.receiveShadow = true;
+    parent.add(shelf);
+    this.curve(parent, coastCurve.getPoints(200).map(p => [p.x, -0.02, p.z + 1.6]), 0.12, material('#d5e5d0'), 200).name = '连续浪沫线';
+  }
+
+  makeSeaSurfaceDetails(parent) {
+    const waves = [];
+    for (let i = 0; i < 460; i++) {
+      const x = this.random() * 350 - 135;
+      const z = 28 + this.random() * 48;
+      if (isLand(x, z - 2)) continue;
+      const length = 2.6 + this.random() * (i % 8 === 0 ? 8 : 4.5);
+      const wave = new THREE.BoxGeometry(length, 0.018, i % 5 === 0 ? 0.2 : 0.11);
+      wave.rotateY((this.random() - 0.5) * 0.62);
+      wave.translate(x, this.seaSurfaceY + 0.025, z);
+      waves.push(wave);
+    }
+    if (waves.length) {
+      const mesh = new THREE.Mesh(mergeGeometries(waves), material('#b2d4c7', { roughness: 0.58, metalness: 0.05 }));
+      mesh.name = '深圳湾_海面碎浪与水纹';
+      parent.add(mesh);
+      waves.forEach(geo => geo.dispose());
+    }
+
+    const ripples = [];
+    for (let attempt = 0; attempt < 420 && ripples.length < 34; attempt++) {
+      const x = -125 + this.random() * 330;
+      const z = 37 + this.random() * 35;
+      const length = 7 + this.random() * 10;
+      const points = [];
+      let clearWater = true;
+      for (let step = 0; step < 5; step++) {
+        const t = step / 4;
+        const px = x + (t - 0.5) * length;
+        const pz = z + Math.sin(t * Math.PI * 2 + x) * 0.75;
+        if (isLand(px, pz)) clearWater = false;
+        points.push(new THREE.Vector3(px, this.seaSurfaceY + 0.04, pz));
+      }
+      if (!clearWater) continue;
+      const curve = new THREE.CatmullRomCurve3(points);
+      ripples.push(new THREE.TubeGeometry(curve, 20, 0.105 + this.random() * 0.055, 4, false));
+    }
+    if (ripples.length) {
+      const mesh = new THREE.Mesh(mergeGeometries(ripples), material('#c0ded1', { roughness: 0.52, metalness: 0.04 }));
+      mesh.name = '海湾_弧形涌浪线';
+      parent.add(mesh);
+      ripples.forEach(geo => geo.dispose());
+    }
+
+    const channel = new THREE.CatmullRomCurve3([[-103, this.seaSurfaceY + 0.03, 25], [-94, this.seaSurfaceY + 0.03, 20], [-88, this.seaSurfaceY + 0.03, 16], [-79, this.seaSurfaceY + 0.03, 18], [-69, this.seaSurfaceY + 0.03, 25]].map(p => new THREE.Vector3(...p)));
+    const estuary = new THREE.Mesh(new THREE.TubeGeometry(channel, 48, 0.3, 5, false), material('#528f8a'));
+    estuary.name = '大沙河口_潮汐水道';
+    parent.add(estuary);
+  }
+
+  makeOuterIslands(parent) {
+    const islands = new THREE.Group();
+    islands.name = '大鹏湾_岛礁群示意';
+    const rockMats = ['#819179', '#9b9b79', '#738875'].map(color => material(color, { flatShading: true }));
+    const sand = material('#c7c2a1');
+    const data = [
+      [139, 48, 8.5, 3.1, 5.4], [157, 58, 11.5, 4.2, 7], [180, 46, 7.2, 3, 5.8],
+      [201, 57, 9.3, 3.7, 6], [219, 43, 5.7, 2.4, 4.6], [169, 37, 4.5, 1.9, 3.2],
+    ];
+    data.forEach(([x, z, sx, sy, sz], i) => {
+      const reef = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), rockMats[i % rockMats.length]);
+      reef.name = `大鹏湾岛礁${i + 1}`;
+      reef.position.set(x, this.seaSurfaceY + 0.07, z);
+      reef.scale.set(sx, sy, sz);
+      reef.castShadow = true;
+      islands.add(reef);
+      const shore = new THREE.Mesh(new THREE.TorusGeometry(1, 0.045, 4, 36), sand);
+      shore.rotation.x = Math.PI / 2;
+      shore.position.set(x, this.seaSurfaceY + 0.03, z);
+      shore.scale.set(sx * 0.94, sz * 0.95, 1);
+      islands.add(shore);
+      for (let tree = 0; tree < 3; tree++) {
+        const crown = new THREE.Mesh(new THREE.ConeGeometry(0.65, 2.3, 6), material('#54785b'));
+        crown.position.set(x + (tree - 1) * sx * 0.32, this.seaSurfaceY + sy + 1.1, z + (tree % 2 ? 1.1 : -1.2));
+        crown.castShadow = true;
+        islands.add(crown);
+      }
+    });
+    parent.add(islands);
+  }
+
+  makeMangroveWetland() {
+    const stands = [];
+    for (let i = 0; i < 42; i++) {
+      const x = -102 + this.random() * 29;
+      const z = 14 + this.random() * 12;
+      if (isLand(x, z)) continue;
+      stands.push({ x, z, scale: 0.72 + this.random() * 0.62, yaw: this.random() * Math.PI * 2 });
+    }
+    if (!stands.length) return;
+    this.mangroveCount = stands.length;
+    const rootGeo = new THREE.CylinderGeometry(0.045, 0.09, 1, 5);
+    rootGeo.translate(0, 0.5, 0);
+    const rootParts = [rootGeo];
+    for (let branch = 0; branch < 3; branch++) {
+      const root = new THREE.CylinderGeometry(0.025, 0.06, 0.72, 5);
+      const angle = branch * Math.PI * 2 / 3;
+      root.rotateZ(0.66);
+      root.rotateY(angle);
+      root.translate(Math.cos(angle) * 0.19, 0.19, Math.sin(angle) * 0.19);
+      rootParts.push(root);
+    }
+    const rootMerged = mergeGeometries(rootParts);
+    rootParts.forEach(geo => geo.dispose());
+    const canopyParts = [];
+    for (let i = 0; i < 4; i++) {
+      const canopy = new THREE.IcosahedronGeometry(0.65 + (i % 2) * 0.18, 1);
+      canopy.translate((i - 1.5) * 0.32, 1.35 + (i % 2) * 0.17, i % 2 ? 0.18 : -0.14);
+      canopyParts.push(canopy);
+    }
+    const canopyMerged = mergeGeometries(canopyParts);
+    canopyParts.forEach(geo => geo.dispose());
+    const trunks = new THREE.InstancedMesh(rootMerged, material('#786f50'), stands.length);
+    const leaves = new THREE.InstancedMesh(canopyMerged, material('#4d7751', { flatShading: true }), stands.length);
+    trunks.name = '深圳湾红树林_支柱根群';
+    leaves.name = '深圳湾红树林_树冠群';
+    const dummy = new THREE.Object3D();
+    stands.forEach((tree, i) => {
+      dummy.position.set(tree.x, this.seaSurfaceY - 0.02, tree.z);
+      dummy.rotation.set(0, tree.yaw, 0);
+      dummy.scale.setScalar(tree.scale);
+      dummy.updateMatrix();
+      trunks.setMatrixAt(i, dummy.matrix);
+      leaves.setMatrixAt(i, dummy.matrix);
+      leaves.setColorAt(i, new THREE.Color().setHSL(0.27 + this.random() * 0.045, 0.28, 0.31 + this.random() * 0.11));
+    });
+    trunks.instanceMatrix.needsUpdate = true;
+    leaves.instanceMatrix.needsUpdate = true;
+    trunks.castShadow = true;
+    this.layers.parks.add(trunks, leaves);
+    const mudflat = new THREE.Mesh(new THREE.CircleGeometry(1, 48), material('#a99675', { roughness: 1 }));
+    mudflat.name = '深圳湾红树林_潮滩';
+    mudflat.rotation.x = -Math.PI / 2;
+    mudflat.position.set(-87, this.seaSurfaceY + 0.12, 20);
+    mudflat.scale.set(17, 7, 1);
+    mudflat.receiveShadow = true;
+    this.layers.parks.add(mudflat);
   }
 
   reserved(x, z, margin = 0) {
@@ -485,7 +653,7 @@ export class ShenzhenCity {
       leaves.castShadow = true;
       this.layers.parks.add(leaves, trunks);
     }
-    this.treeCount = trees.length;
+    this.treeCount = trees.length + (this.mangroveCount ?? 0);
   }
 
   makeBridge() {
@@ -509,17 +677,55 @@ export class ShenzhenCity {
 
   makeBoats() {
     this.boats = [];
-    const white = material('#f7eed6'), hullMat = material('#315b57');
-    for (const [x, z, angle, size] of [[-25, 55, -0.6, 1], [51, 61, 0.7, 0.8], [111, 49, -0.4, 1.15]]) {
+    const white = material('#f7eed6'), hullMat = material('#284d52'), glass = material('#75999a', { metalness: 0.2, roughness: 0.3 });
+    const hullShape = new THREE.Shape();
+    hullShape.moveTo(-0.58, 1.55);
+    hullShape.lineTo(0, 1.95);
+    hullShape.lineTo(0.58, 1.55);
+    hullShape.lineTo(0.68, -1.18);
+    hullShape.lineTo(0.5, -1.72);
+    hullShape.lineTo(-0.5, -1.72);
+    hullShape.lineTo(-0.68, -1.18);
+    hullShape.closePath();
+    const hullGeo = new THREE.ExtrudeGeometry(hullShape, { depth: 0.42, bevelEnabled: true, bevelSegments: 1, steps: 1, bevelSize: 0.06, bevelThickness: 0.07 });
+    hullGeo.rotateX(-Math.PI / 2);
+    hullGeo.translate(0, -0.38, 0);
+    for (const [index, [x, z, angle, size]] of [[-25, 55, -0.6, 1.18], [51, 61, 0.7, 0.8], [111, 49, -0.4, 1.05]].entries()) {
       const boat = new THREE.Group();
-      const hull = new THREE.Mesh(new THREE.CylinderGeometry(1, 0.75, 0.7, 5), hullMat);
-      hull.scale.set(1.1, 1, 3.8);
+      boat.name = index === 0 ? '深圳湾货柜船' : `深圳湾游船${index}`;
+      const hull = new THREE.Mesh(hullGeo, hullMat);
+      hull.scale.set(1.12, 1, 1.85);
+      hull.rotation.y = Math.PI;
       boat.add(hull);
-      this.box(boat, 0, 0.8, 0.3, 1.5, 1.1, 3.5, white);
-      this.box(boat, 0, 1.55, -0.5, 1.15, 0.5, 1.2, white);
-      boat.position.set(x, -0.7, z);
+      if (index === 0) {
+        const colors = ['#c97555', '#d8b06a', '#587d87', '#bc6959', '#718b70'];
+        for (let row = 0; row < 3; row++) for (let col = 0; col < 2; col++) {
+          this.box(boat, (col - 0.5) * 0.65, 0.3 + (row === 1 && col === 0 ? 0.38 : 0), (row - 0.8) * 0.82, 0.61, 0.37, 0.76, material(colors[(row * 2 + col) % colors.length]), false);
+        }
+        this.box(boat, 0, 0.66, -1.22, 0.92, 0.8, 0.78, white, false);
+        this.box(boat, 0, 1.08, -1.22, 0.68, 0.25, 0.32, glass, false);
+        this.box(boat, 0, 0.05, 0.25, 1.1, 0.08, 2.8, material('#c9c5ad'), false);
+      } else {
+        this.box(boat, 0, 0.55, -0.3, 0.8, 0.64, 0.95, white, false);
+        this.box(boat, 0, 0.82, -0.34, 0.6, 0.22, 0.16, glass, false);
+        this.box(boat, 0, 0.05, 0.25, 0.9, 0.08, 2.5, material('#e7dabc'), false);
+        const mast = this.box(boat, 0, 1.02, 0.55, 0.055, 0.85, 0.055, material('#e9e2cb'), false);
+        mast.castShadow = false;
+      }
+      const wakeMat = new THREE.MeshBasicMaterial({ color: '#d8e7da', transparent: true, opacity: 0.74 });
+      for (const side of [-1, 1]) {
+        const wake = new THREE.CatmullRomCurve3([
+          new THREE.Vector3(side * 0.42, -0.3, -1.55),
+          new THREE.Vector3(side * 0.75, -0.3, -2.55),
+          new THREE.Vector3(side * 1.3, -0.3, -3.8),
+          new THREE.Vector3(side * 2.1, -0.3, -5.1),
+        ]);
+        boat.add(new THREE.Mesh(new THREE.TubeGeometry(wake, 22, 0.06, 4, false), wakeMat));
+      }
+      boat.position.set(x, -0.14, z);
       boat.rotation.y = angle;
       boat.scale.setScalar(size);
+      boat.traverse(object => { if (object.isMesh) object.castShadow = true; });
       this.layers.terrain.add(boat);
       this.boats.push({ boat, y: boat.position.y, phase: x });
     }
