@@ -145,21 +145,46 @@ export class ShenzhenCity {
     this.floorMaterial = bottom.material;
 
     this.hills = [
-      [-112, -56, 20, 10, 15], [-82, -56, 28, 13, 17], [-50, -57, 22, 10, 15],
-      [9, -45, 15, 9, 13], [50, -58, 17, 12, 16], [81, -53, 27, 21, 19],
-      [107, -47, 22, 16, 22], [126, -50, 15, 10, 15],
+      { name: '凤凰山森林公园', x: -139, z: -78, sx: 17, sy: 11, sz: 19 },
+      { name: '阳台山森林公园', x: -103, z: -68, sx: 23, sy: 16, sz: 22 },
+      { name: '塘朗山郊野公园', x: -72, z: -54, sx: 17, sy: 13, sz: 17 },
+      { name: '梅林山郊野公园', x: -40, z: -53, sx: 20, sy: 13, sz: 17 },
+      { name: '银湖山郊野公园', x: -8, z: -62, sx: 21, sy: 14, sz: 18 },
+      { name: '莲花山公园', x: 13, z: -28, sx: 12, sy: 7, sz: 11 },
+      { name: '笔架山公园', x: 40, z: -37, sx: 14, sy: 8, sz: 13 },
+      { name: '梧桐山风景区', x: 107, z: -67, sx: 24, sy: 21, sz: 24 },
+      { name: '马峦山郊野公园', x: 151, z: -96, sx: 23, sy: 17, sz: 22 },
+      { name: '七娘山地质公园', x: 192, z: -114, sx: 19, sy: 20, sz: 20 },
+      { name: '大南山公园', x: -94, z: -27, sx: 13, sy: 11, sz: 12 },
     ];
-    const hillMats = ['#839b74', '#98ac84', '#b0bc92'].map(c => material(c, { flatShading: true }));
-    this.hills.forEach(([x, z, sx, sy, sz], i) => {
-      const hill = new THREE.Mesh(new THREE.SphereGeometry(1, 9, 5, 0, Math.PI * 2, 0, Math.PI / 2), hillMats[i % 3]);
-      hill.position.set(x, LAND_Y, z);
-      hill.scale.set(sx, sy, sz);
-      // Rotate facets before scaling so the rendered footprint matches reserved().
-      hill.geometry.rotateY(i);
-      hill.castShadow = true;
-      hill.receiveShadow = true;
-      this.layers.parks.add(hill);
+    const hillMats = ['#718b68', '#849b72', '#94a77b', '#a4af83'].map(c => material(c, { flatShading: true }));
+    this.hills.forEach((hillData, i) => {
+      const { x, z, sx, sy, sz, name } = hillData;
+      const group = new THREE.Group();
+      group.name = `${name}_山体公园`;
+      group.userData.feature = '山海连城山体与公园示意';
+      const seed = i * 1.7;
+      const base = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 9, 0, Math.PI * 2, 0, Math.PI / 2), hillMats[i % hillMats.length]);
+      base.position.y = sy * 0.36;
+      base.scale.set(sx, sy * 0.83, sz);
+      base.rotation.y = seed;
+      base.castShadow = true;
+      base.receiveShadow = true;
+      group.add(base);
+      // Layered foothills soften the old single-dome silhouette and read as ridgelines.
+      for (let ridge = 0; ridge < 3; ridge++) {
+        const angle = seed + ridge * Math.PI * 2 / 3;
+        const spur = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), hillMats[(i + ridge + 1) % hillMats.length]);
+        spur.position.set(Math.cos(angle) * sx * 0.39, sy * (0.1 + ridge * 0.025), Math.sin(angle) * sz * 0.37);
+        spur.scale.set(sx * 0.53, sy * (0.49 + ridge * 0.035), sz * 0.52);
+        spur.rotation.y = angle;
+        spur.castShadow = true;
+        group.add(spur);
+      }
+      group.position.set(x, LAND_Y, z);
+      this.layers.parks.add(group);
     });
+    this.makeGreenway();
     const grid = new THREE.GridHelper(1200, 80, '#bdcbc3', '#d8e1da');
     grid.position.y = -7.1;
     grid.material.transparent = true;
@@ -187,7 +212,43 @@ export class ShenzhenCity {
       const [rx, rz] = l.footprint ?? [l.kind === 'oval' || l.kind === 'wing' ? 13 : 8, l.kind === 'wing' ? 8 : 7];
       return Math.abs(x - l.x) < rx + margin && Math.abs(z - l.z) < rz + margin;
     })) return true;
-    return this.hills.some(([hx, hz, sx, , sz]) => ((x - hx) / (sx + margin)) ** 2 + ((z - hz) / (sz + margin)) ** 2 < 0.9);
+    return this.hills.some(({ x: hx, z: hz, sx, sz }) => ((x - hx) / (sx + margin)) ** 2 + ((z - hz) / (sz + margin)) ** 2 < 0.9);
+  }
+
+  makeGreenway() {
+    const parks = this.layers.parks;
+    const route = [
+      [-150, -84], [-130, -74], [-105, -68], [-82, -56], [-64, -53],
+      [-42, -55], [-20, -64], [2, -62], [25, -49], [43, -39], [63, -48],
+      [86, -60], [107, -69], [130, -83], [153, -97], [173, -107], [193, -115],
+    ].map(([x, z]) => [x, LAND_Y + 0.35, z]);
+    this.curve(parks, route, 0.42, material('#d5c99e'), 180).name = '鲲鹏径_山海连城步道示意';
+    const secondary = [
+      [[-104, -66], [-110, -48], [-105, -33], [-94, -27], [-77, -36]],
+      [[-38, -54], [-30, -38], [-20, -28], [-3, -29], [12, -28]],
+      [[84, -59], [91, -47], [105, -39], [123, -42], [137, -56]],
+      [[147, -93], [161, -78], [178, -73], [195, -80]],
+    ];
+    secondary.forEach((points, i) => {
+      this.curve(parks, points.map(([x, z]) => [x, LAND_Y + 0.26, z]), 0.22, material(i % 2 ? '#e0d5b0' : '#a7b98a'), 40).name = `山海连城_郊野绿道${i + 1}`;
+    });
+    const clearings = [
+      ['深圳湾公园', -89, 17], ['人才公园', -75, 5], ['莲花山公园', 13, -28],
+      ['深圳中心公园', 28, -15], ['东湖公园', 79, -43], ['仙湖植物园', 101, -52],
+      ['大沙河公园', -70, -37], ['马峦山郊野公园', 151, -96],
+    ];
+    clearings.forEach(([name, x, z], i) => {
+      const pad = new THREE.Mesh(new THREE.CylinderGeometry(i < 2 ? 5.8 : 3.3, i < 2 ? 6.6 : 3.8, 0.18, 12), material(i < 2 ? '#a9c18d' : '#b6c493'));
+      pad.name = `${name}_公园绿地`;
+      pad.position.set(x, LAND_Y + 0.12, z);
+      pad.receiveShadow = true;
+      parks.add(pad);
+      const path = new THREE.Mesh(new THREE.TorusGeometry(i < 2 ? 4.6 : 2.5, 0.1, 4, 24), material('#ddd2aa'));
+      path.name = `${name}_环园步道`;
+      path.rotation.x = Math.PI / 2;
+      path.position.set(x, LAND_Y + 0.24, z);
+      parks.add(path);
+    });
   }
 
   makeRoads() {
@@ -351,30 +412,79 @@ export class ShenzhenCity {
       const x = this.random() * 399 - 165;
       const z = this.random() * 210 - 178;
       if (!isLand(x, z + 2)) continue;
-      const onHill = this.hills.some(([hx, hz, sx, , sz]) => ((x - hx) / sx) ** 2 + ((z - hz) / sz) ** 2 < 1.1);
+      const onHill = this.hills.some(({ x: hx, z: hz, sx, sz }) => ((x - hx) / sx) ** 2 + ((z - hz) / sz) ** 2 < 1.1);
       if (onHill || this.reserved(x, z, 1)) continue;
       const nearRoad = Math.abs(((x + 124) % 16 + 16) % 16 - 8) > 5.6;
       const onCoast = !isLand(x, z + 5);
       if (!nearRoad && !onCoast) continue;
-      trees.push([x, LAND_Y, z, 0.7 + this.random() * 0.7]);
+      trees.push({ x, z, scale: 0.76 + this.random() * 0.62, species: Math.floor(this.random() * 4), yaw: this.random() * Math.PI * 2, color: this.random() });
     }
-    const leaves = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1, 0), material('#769b74', { flatShading: true }), trees.length);
-    const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.12, 0.18, 1, 5), material('#a7946d'), trees.length);
+    const speciesNames = ['香樟阔叶', '木棉阔冠', '南方松', '海岸棕榈'];
+    const foliageMats = ['#537b55', '#68895a', '#47745e', '#728c59'].map(c => material(c, { flatShading: true }));
+    const trunkMats = ['#8d7458', '#92775d', '#776e57', '#a38d67'].map(c => material(c));
+    const templates = [
+      { trunk: 1.45, crown: 1.15, tiers: 3 }, { trunk: 2.05, crown: 1.35, tiers: 4 },
+      { trunk: 1.6, crown: 0.8, tiers: 4 }, { trunk: 1.9, crown: 1.25, tiers: 5 },
+    ];
     const dummy = new THREE.Object3D();
-    trees.forEach(([x, y, z, s], i) => {
-      dummy.position.set(x, y + s * 1.85, z);
-      dummy.scale.set(s, s * 1.1, s);
-      dummy.rotation.y = this.random() * 6;
-      dummy.updateMatrix();
-      leaves.setMatrixAt(i, dummy.matrix);
-      leaves.setColorAt(i, new THREE.Color().setHSL(0.24 + this.random() * 0.08, 0.19, 0.37 + this.random() * 0.15));
-      dummy.position.y = y + s * 0.6;
-      dummy.scale.set(1, s * 1.2, 1);
-      dummy.updateMatrix();
-      trunks.setMatrixAt(i, dummy.matrix);
-    });
-    leaves.castShadow = true;
-    this.layers.parks.add(leaves, trunks);
+    for (let species = 0; species < templates.length; species++) {
+      const data = templates[species];
+      const leafGeometries = [], trunkGeometries = [];
+      const stem = new THREE.CylinderGeometry(0.09, 0.15, data.trunk, 7);
+      stem.translate(0, data.trunk / 2, 0);
+      trunkGeometries.push(stem);
+      if (species === 0 || species === 1) {
+        for (let branch = 0; branch < 4; branch++) {
+          const angle = branch * Math.PI / 2 + 0.3;
+          const limb = new THREE.CylinderGeometry(0.045, 0.08, 0.9, 5);
+          limb.rotateZ(-0.65);
+          limb.rotateY(angle);
+          limb.translate(Math.cos(angle) * 0.35, data.trunk * 0.73, Math.sin(angle) * 0.35);
+          trunkGeometries.push(limb);
+        }
+      }
+      for (let tier = 0; tier < data.tiers; tier++) {
+        const t = tier / Math.max(1, data.tiers - 1);
+        const y = data.trunk + 0.3 + t * (species === 1 ? 0.9 : 0.55);
+        if (species === 2) {
+          const cone = new THREE.ConeGeometry(data.crown * (1 - t * 0.17), 1.15, 9, 1);
+          cone.translate(0, y + 0.48, 0);
+          leafGeometries.push(cone);
+        } else if (species === 3) {
+          for (let frond = 0; frond < 5; frond++) {
+            const angle = frond * Math.PI * 2 / 5;
+            const leaf = new THREE.ConeGeometry(0.18, 1.65, 5, 1);
+            leaf.rotateZ(-0.95);
+            leaf.rotateY(angle);
+            leaf.translate(Math.cos(angle) * 0.55, y + Math.sin(t * Math.PI) * 0.25, Math.sin(angle) * 0.55);
+            leafGeometries.push(leaf);
+          }
+        } else {
+          const crown = new THREE.IcosahedronGeometry(data.crown * (1 - t * 0.24), 1);
+          crown.translate((tier % 2 ? 0.22 : -0.18), y, tier % 2 ? -0.12 : 0.16);
+          leafGeometries.push(crown);
+        }
+      }
+      const members = trees.map((tree, index) => ({ tree, index })).filter(item => item.tree.species === species);
+      if (!members.length) continue;
+      const leaves = new THREE.InstancedMesh(mergeGeometries(leafGeometries), foliageMats[species], members.length);
+      const trunks = new THREE.InstancedMesh(mergeGeometries(trunkGeometries), trunkMats[species], members.length);
+      leaves.name = `${speciesNames[species]}_树冠`;
+      trunks.name = `${speciesNames[species]}_树干与枝杈`;
+      members.forEach(({ tree }, index) => {
+        dummy.position.set(tree.x, LAND_Y, tree.z);
+        dummy.rotation.set(0, tree.yaw, 0);
+        dummy.scale.setScalar(tree.scale);
+        dummy.updateMatrix();
+        leaves.setMatrixAt(index, dummy.matrix);
+        trunks.setMatrixAt(index, dummy.matrix);
+        leaves.setColorAt(index, new THREE.Color().setHSL(0.25 + tree.color * 0.09, 0.24, 0.34 + tree.color * 0.16));
+      });
+      leaves.instanceMatrix.needsUpdate = true;
+      trunks.instanceMatrix.needsUpdate = true;
+      leaves.castShadow = true;
+      this.layers.parks.add(leaves, trunks);
+    }
     this.treeCount = trees.length;
   }
 
@@ -417,14 +527,89 @@ export class ShenzhenCity {
 
   makeTraffic() {
     this.cars = [];
-    const carMats = ['#efdfb4', '#b27758', '#e4e6db', '#527e75'].map(c => material(c, { emissive: '#ffdc9c', emissiveIntensity: 0 }));
-    this.carMats = carMats;
+    const carPalette = ['#e9e3d3', '#ad7055', '#496f69', '#8d9fa2', '#d8b966', '#374650'];
+    const mergeBoxes = boxes => {
+      const geometries = boxes.map(([x, y, z, w, h, d]) => {
+        const geo = new THREE.BoxGeometry(w, h, d);
+        geo.translate(x, y, z);
+        return geo;
+      });
+      const merged = mergeGeometries(geometries);
+      geometries.forEach(geo => geo.dispose());
+      return merged;
+    };
+    const bodyGeo = mergeBoxes([
+      [0, 0.36, 0, 2.55, 0.48, 1.12], [0.82, 0.52, 0, 0.66, 0.2, 1.06],
+      [-0.88, 0.51, 0, 0.54, 0.2, 1.06], [1.23, 0.28, 0, 0.13, 0.18, 0.96],
+      [-1.23, 0.28, 0, 0.13, 0.18, 0.96],
+    ]);
+    const cabinGeo = mergeBoxes([[0, 0.79, 0, 1.36, 0.49, 0.91]]);
+    const glassGeo = mergeBoxes([
+      [0.16, 0.8, 0, 0.52, 0.32, 0.925], [-0.43, 0.8, 0, 0.43, 0.32, 0.925],
+    ]);
+    const wheelParts = [];
+    for (const x of [-0.78, 0.78]) for (const z of [-0.59, 0.59]) {
+      const tire = new THREE.CylinderGeometry(0.28, 0.28, 0.16, 12);
+      tire.rotateX(Math.PI / 2);
+      tire.translate(x, 0.3, z);
+      wheelParts.push(tire);
+    }
+    const wheelGeo = mergeGeometries(wheelParts);
+    wheelParts.forEach(geo => geo.dispose());
+    const rimParts = [];
+    for (const x of [-0.78, 0.78]) for (const z of [-0.68, 0.68]) {
+      const rim = new THREE.CylinderGeometry(0.12, 0.12, 0.025, 10);
+      rim.rotateX(Math.PI / 2);
+      rim.translate(x, 0.3, z);
+      rimParts.push(rim);
+    }
+    const rimGeo = mergeGeometries(rimParts);
+    rimParts.forEach(geo => geo.dispose());
+    const lampGeo = mergeBoxes([[1.29, 0.41, -0.36, 0.07, 0.13, 0.24], [1.29, 0.41, 0.36, 0.07, 0.13, 0.24]]);
+    const tailGeo = mergeBoxes([[-1.29, 0.41, -0.36, 0.07, 0.13, 0.24], [-1.29, 0.41, 0.36, 0.07, 0.13, 0.24]]);
+    const bodyMat = material('#ffffff', { roughness: 0.42, metalness: 0.12 });
+    const cabinMat = material('#f4f1e6', { roughness: 0.45 });
+    const glassMat = material('#536c71', { roughness: 0.28, metalness: 0.22 });
+    const rubberMat = material('#313d3b', { roughness: 0.96 });
+    const rimMat = material('#bbc2b9', { metalness: 0.55, roughness: 0.3 });
+    const headMat = material('#fff1bf', { emissive: '#ffd887', emissiveIntensity: 0.25 });
+    const tailMat = material('#b95348', { emissive: '#972b25', emissiveIntensity: 0.12 });
+    this.carLightMats = [headMat, tailMat];
+    const parts = [
+      ['车身', bodyGeo, bodyMat], ['车顶', cabinGeo, cabinMat], ['车窗', glassGeo, glassMat],
+      ['轮胎', wheelGeo, rubberMat], ['轮毂', rimGeo, rimMat], ['前灯', lampGeo, headMat], ['尾灯', tailGeo, tailMat],
+    ];
+    this.carMeshes = parts.map(([name, geometry, mat]) => {
+      const mesh = new THREE.InstancedMesh(geometry, mat, 28);
+      mesh.name = `道路车辆_${name}`;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      this.layers.traffic.add(mesh);
+      return mesh;
+    });
     for (let i = 0; i < 28; i++) {
       const x = -130 + this.random() * 260;
       const z = [-44, -28, -12, 4, 20][i % 5];
-      const mesh = this.box(this.layers.traffic, x, LAND_Y + 0.5, z + (i % 2 ? 0.6 : -0.6), 1.1, 0.55, 0.55, carMats[i % 4], false);
-      this.cars.push({ mesh, x, z, dir: i % 2 ? 1 : -1, speed: 2 + this.random() * 1.5 });
+      const laneZ = z + (i % 2 ? 0.62 : -0.62);
+      this.cars.push({ x, z: laneZ, dir: i % 2 ? 1 : -1, speed: 1.2 + this.random() * 1.4, color: i % carPalette.length, visible: isLand(x, laneZ + 2) && !this.reserved(x, laneZ, -3) });
     }
+    this.carPalette = carPalette;
+    this.updateTrafficMatrices();
+  }
+
+  updateTrafficMatrices() {
+    const dummy = new THREE.Object3D();
+    this.cars.forEach((car, index) => {
+      dummy.position.set(car.x, LAND_Y, car.z);
+      dummy.rotation.set(0, car.dir < 0 ? Math.PI : 0, 0);
+      dummy.scale.setScalar(car.visible ? 0.72 : 0);
+      dummy.updateMatrix();
+      this.carMeshes.forEach((mesh, partIndex) => {
+        mesh.setMatrixAt(index, dummy.matrix);
+        if (partIndex === 0) mesh.setColorAt(index, new THREE.Color(this.carPalette[car.color]));
+      });
+    });
+    for (const mesh of this.carMeshes) mesh.instanceMatrix.needsUpdate = true;
   }
 
   makeSelection() {
@@ -517,7 +702,7 @@ export class ShenzhenCity {
     this.sun.position.set(-65 + dusk * 70, 130 - dusk * 95, 70);
     this.renderer.toneMappingExposure = 1.1 + night * 0.12;
     this.facades.forEach(mat => { mat.emissiveIntensity = night * (mat.userData.nightGlow ?? 1.7); });
-    this.carMats.forEach(mat => { mat.emissiveIntensity = night * 0.8; });
+    this.carLightMats.forEach(mat => { mat.emissiveIntensity = night * 0.8; });
     this.selection.material.color.set(night > 0.5 ? '#cceeb7' : '#326e59');
   }
 
@@ -557,9 +742,9 @@ export class ShenzhenCity {
         car.x += car.dir * car.speed * dt;
         if (car.x > 133) car.x = -133;
         if (car.x < -133) car.x = 133;
-        car.mesh.position.x = car.x;
-        car.mesh.visible = isLand(car.x, car.z + 2) && !this.reserved(car.x, car.z, -3);
+        car.visible = isLand(car.x, car.z + 2) && !this.reserved(car.x, car.z, -3);
       });
+      this.updateTrafficMatrices();
     }
     this.renderer.render(this.scene, this.camera);
     this.onFrame?.(this);
