@@ -1,6 +1,6 @@
 import './style.css';
 import { ShenzhenCity } from './city.js';
-import { landmarks, districtLabels, subdistrictLabels } from './data.js';
+import { landmarks, districtLabels, subdistrictLabels, ecoLabels } from './data.js';
 
 const districtFilters = ['全部', ...districtLabels.map(d => d.name), '坂田'];
 
@@ -48,6 +48,8 @@ function silhouette(kind) {
     yantian: '<path d="M12 56V30h25v26M8 30h45M20 30V13l28 17M20 13l-9 17M18 30l-6 26m18-26 7 26M44 31v15M4 56h51l-5 7H10ZM18 53v-9h7v9m2 0V42h8v11"/>',
     huawei: '<path d="M12 61V16q18 8 36 0v45ZM9 14q21 9 42 0M9 10q21 9 42 0M18 18v43m8-41v41m8-41v41m8-43v43M12 29q18 7 36 0M12 40q18 7 36 0M12 51q18 7 36 0"/>',
     yungu: '<path d="M8 61V14h18v47M34 61V27h18v34M11 14v-4h12v4M37 27v-4h12v4M8 24h18M8 34h18M8 44h18M8 54h18M34 36h18M34 46h18M34 56h18M26 53h8M14 14v47m26-34v34"/>',
+    ganfeng: '<path d="M10 61V25h17v36M33 61V17h17v44M8 25h21M31 17h21M13 31v30m6-30v30m6-30v30m7-22h21m-15 0v22m7-22v22m7-22v22M5 64h50"/>',
+    galaxyTwin: '<path d="M8 61V27q0-10 9-16 9 6 9 16v34M34 61V27q0-10 9-16 9 6 9 16v34M9 33q8 3 17 0m8 0q8 3 17 0M9 43q8 3 17 0m8 0q8 3 17 0M9 53q8 3 17 0m8 0q8 3 17 0M17 11v50m26-50v50M5 64h50"/>',
   };
   return `<svg viewBox="0 0 60 70" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" aria-hidden="true">${drawings[kind]}</svg>`;
 }
@@ -77,7 +79,7 @@ document.querySelector('#app').innerHTML = `
       <div class="view-tools" role="group" aria-label="视角控制"><button id="zoom-in" title="放大" aria-label="放大">${icon('plus')}</button><button id="zoom-out" title="缩小" aria-label="缩小">${icon('minus')}</button><span></span><button id="rotate-view" title="旋转视角" aria-label="旋转视角">${icon('reset')}</button><button id="top-view" title="俯视城市" aria-label="俯视城市">${icon('top')}</button><button id="home-view" title="回到全景" aria-label="回到全景">${icon('home')}</button><span></span><button id="screenshot" title="保存场景截图" aria-label="保存场景截图">${icon('camera')}</button></div>
       <div class="layers-panel" id="layers-panel" hidden><div class="panel-heading"><strong>场景图层</strong><button id="close-layers" class="icon-button" aria-label="关闭图层面板">${icon('close')}</button></div>${[['buildings', 'city', '城市建筑'], ['roads', 'route', '道路与车流'], ['parks', 'tree', '山体与绿地'], ['labels', 'pin', '地标名称']].map(([id, name, label]) => `<label class="layer-row">${icon(name)}<span>${label}</span><input type="checkbox" data-layer="${id}" checked><span class="switch"></span></label>`).join('')}</div>
       <div class="landmark-detail" id="landmark-detail" hidden></div>
-      <div class="scene-bottom"><div class="scene-legend"><span><i class="legend-building"></i>城市建筑</span><span><i class="legend-park"></i>山体绿地</span><span><i class="legend-water"></i>海湾水域</span></div><span class="model-note">示意布局 · 非测绘数据</span></div>
+      <div class="scene-bottom"><div class="scene-legend"><span><i class="legend-building"></i>城市建筑</span><span><i class="legend-route"></i>鲲鹏径 · 山海连城主脊</span><span><i class="legend-park"></i>山体与公园</span><span><i class="legend-water"></i>海湾水域</span></div><span class="model-note">示意布局 · 非测绘数据</span></div>
       <div class="loading-screen" id="loading"><div class="loading-city">${icon('city')}</div><strong>让一座城市，慢慢浮现</strong><span>BUILDING SHENZHEN</span></div>
     </section>
   </main>
@@ -157,6 +159,14 @@ const districts = [...districtLabels, ...subdistrictLabels].map(d => {
   $('#map-labels').appendChild(node);
   return { node, ...d };
 });
+const ecoNodes = ecoLabels.map(site => {
+  const node = document.createElement('div');
+  node.className = 'eco-label';
+  node.innerHTML = `<span>${site.name}</span><small>${site.district} · 山海连城</small>`;
+  node.setAttribute('aria-label', `${site.district}：${site.name}，山海连城生态节点`);
+  $('#map-labels').appendChild(node);
+  return { node, ...site };
+});
 
 function updateLabels(scene) {
   const occupied = [];
@@ -173,6 +183,23 @@ function updateLabels(scene) {
       l.node.style.transform = `translate(${left}px, ${top}px)`;
       l.node.classList.toggle('selected', l.id === selectedId);
       occupied.push({ x: left, y: top, w: width });
+    }
+  }
+  const overviewOnly = scene.camera.zoom < 1.12;
+  const ecoOccupied = [];
+  for (const site of ecoNodes) {
+    const p = scene.project(site.x, site.y, site.z);
+    const width = site.name.length * 11 + site.district.length * 6 + 49;
+    const left = p.x - width / 2;
+    const top = p.y - 42;
+    const showAtZoom = overviewOnly ? site.overview : true;
+    const visible = labelsVisible && buildingsVisible && !selectedId && showAtZoom && p.visible
+      && left > 4 && left + width < scene.width - 62 && top > 104 && top < scene.height - 78
+      && !ecoOccupied.some(r => left < r.x + r.w && left + width > r.x && top < r.y + 38 && top + 38 > r.y);
+    site.node.hidden = !visible;
+    if (visible) {
+      site.node.style.transform = `translate(${left}px, ${top}px)`;
+      ecoOccupied.push({ x: left, y: top, w: width });
     }
   }
   for (const d of districts) {

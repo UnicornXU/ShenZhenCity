@@ -280,4 +280,80 @@ function yungu(part, m) {
   for (const x of [-11.4, 11.4]) for (const z of [-10, -5, 0, 5, 10]) tree(part, x, z, m, 0.3, 0.85);
 }
 
-export const districtBuilders = { airport, northstation: northStation, guangming, pingshan, dapeng, yantian, huawei, yungu };
+function ganfeng(part, m) {
+  const glass = standard('ganfeng_blue_green_curtain_wall', '#477b88', { metalness: 0.58, roughness: 0.3, envMap: m.glass.envMap, envMapIntensity: 0.55 });
+  const metal = standard('ganfeng_silver_fins', '#afc2c2', { metalness: 0.64, roughness: 0.34 });
+  const towerMaterial = { ...m, glass };
+  // Two research-office towers sit above a broad shared podium.
+  part.box(0, 1.1, 0, 22, 2.2, 15, m.stone);
+  part.box(0, 1.65, 0.1, 21.4, 1.1, 14.5, glass);
+  part.box(0, 2.35, 0, 22.4, 0.22, 15.4, m.roof);
+  for (const [x, z, width, depth, height] of [[-4.8, -0.8, 7.4, 6.8, 15.1], [4.7, 0.5, 7.1, 6.5, 16.3]]) {
+    facade(part, x, z, width, depth, 2.45, height, towerMaterial, 0.55);
+    // Slightly recessed mechanical floors and a slim parapet give each block a real roofline.
+    for (const y of [height - 1.15, height - 0.75]) part.box(x, y, z, width + 0.16, 0.12, depth + 0.16, metal);
+    part.box(x, height + 0.14, z, width + 0.28, 0.24, depth + 0.28, metal);
+    part.box(x, height + 0.33, z, width * 0.58, 0.14, depth * 0.62, m.roof);
+  }
+  // Recessed public forecourt and planted podium edges.
+  part.box(0, 0.38, 8.35, 16, 0.1, 1.8, m.water);
+  part.box(0, 0.48, 7.1, 3.5, 0.12, 3.6, m.stone);
+  for (const x of [-10.2, 10.2]) {
+    part.box(x, 2.63, 0, 1.25, 0.34, 14.8, m.grass);
+    for (const z of [-5.2, -1.8, 2, 5.3]) tree(part, x, z, m, 2.82, 0.55);
+  }
+}
+
+function galaxyTwin(part, m) {
+  const glass = standard('galaxy_twin_blue_silver_glass', '#668a99', { metalness: 0.62, roughness: 0.24, envMap: m.glass.envMap, envMapIntensity: 0.72, emissive: '#294650', emissiveIntensity: 0.06 });
+  const trim = standard('galaxy_twin_satin_metal', '#c0ccca', { metalness: 0.72, roughness: 0.28 });
+  const podium = standard('galaxy_twin_podium_glass', '#8fa8a6', { metalness: 0.38, roughness: 0.34 });
+  // A shallow, flowing podium ties the two towers into one campus-scale base.
+  const podiumRing = (y, rx, rz, offset = 0) => Array.from({ length: 48 }, (_, i) => {
+    const a = i / 48 * Math.PI * 2;
+    const wave = 1 + 0.055 * Math.sin(a * 2 + y * 0.32);
+    return [Math.cos(a) * rx * wave + offset * Math.sin(a), y, Math.sin(a) * rz * wave];
+  });
+  part.add(loft([podiumRing(0.3, 14.3, 7.2), podiumRing(2.15, 13.8, 6.9, 0.2), podiumRing(2.55, 12.8, 6.2, 0.7)]), podium);
+  part.line(podiumRing(2.58, 12.9, 6.25, 0.7), trim, true);
+  part.box(0, 0.24, 0, 26.5, 0.32, 13.2, m.stone);
+
+  const count = 32;
+  for (const [center, direction] of [[-5.25, 1], [5.25, -1]]) {
+    const levels = 45;
+    const profile = t => 1 + 0.035 * Math.sin(t * Math.PI * 2.2) - 0.13 * t ** 1.6;
+    const contour = (t, y) => {
+      const width = 3.25 * profile(t), depth = 2.8 * profile(t);
+      const twist = direction * (0.38 * t + 0.035 * Math.sin(t * Math.PI * 2));
+      return Array.from({ length: count }, (_, i) => {
+        const a = i / count * Math.PI * 2 + twist;
+        const ex = Math.sign(Math.cos(a)) * Math.abs(Math.cos(a)) ** 0.76 * width;
+        const ez = Math.sign(Math.sin(a)) * Math.abs(Math.sin(a)) ** 0.76 * depth;
+        return [center + ex, y, ez];
+      });
+    };
+    const rings = Array.from({ length: levels }, (_, i) => {
+      const t = i / (levels - 1);
+      return contour(t, 2.5 + t * 38.2);
+    });
+    part.add(loft(rings), glass);
+    // Continuous vertical fins make the subtle twist legible from the city overview.
+    for (let i = 0; i < count; i += 2) {
+      const path = rings.map(r => r[i]);
+      for (let j = 1; j < path.length; j++) part.beam(path[j - 1], path[j], i % 8 === 0 ? 0.052 : 0.026, i % 8 === 0 ? trim : m.mullion);
+    }
+    for (let y = 4; y < 40; y += 1.05) {
+      const t = (y - 2.5) / 38.2;
+      part.line(contour(t, y), m.lightLine, true);
+    }
+    const crown = contour(1, 40.7);
+    part.line(crown, trim, true);
+    part.add(new THREE.CylinderGeometry(0.95, 1.18, 0.4, 32), trim, [center, 40.95, 0]);
+  }
+  // Fine shade canopies and recessed entries articulate the shared retail base.
+  for (const z of [-5.3, 5.3]) part.box(0, 2.72, z, 21, 0.18, 0.36, trim);
+  for (let x = -9; x <= 9; x += 1.5) part.box(x, 1.55, 6.63, 0.82, 1.8, 0.12, m.glass);
+  part.box(0, 0.39, 8.2, 18, 0.1, 1.3, m.water);
+}
+
+export const districtBuilders = { airport, northstation: northStation, guangming, pingshan, dapeng, yantian, huawei, yungu, ganfeng, galaxyTwin };

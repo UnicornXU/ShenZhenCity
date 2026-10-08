@@ -17,6 +17,8 @@ export const landmarks = [
   { id: 'yantian', name: '盐田港', english: 'YANTIAN INTERNATIONAL CONTAINER TERMINAL', district: '盐田', tag: '蓝色岸桥 · 集装箱码头', x: 151, z: -8, height: 13, kind: 'yantian', color: '#6595a4', footprint: [23, 17], focusZoom: 3.3, focusOffset: [90, 140, 130], description: '蓝色岸桥、桁架吊臂、拉索和成排集装箱，构成盐田港鲜明的工业轮廓。模型同时表现装卸区、码头边缘水面与靠泊集装箱船，布局和数量经过压缩。', reference: { label: '盐田国际 · 港区资料', url: 'https://www.yict.com.cn/index.html?locale=zh_CN' } },
   { id: 'huawei', name: '坂田 · 华为总部 F1', english: 'BANTIAN · HUAWEI HEADQUARTERS F1', district: '龙岗', subdistrict: '坂田', tag: '坂田基地 · 弧形幕墙', x: 10, z: -147, height: 22.2, kind: 'huawei', color: '#468193', footprint: [18, 13], focusZoom: 4.5, focusOffset: [65, 100, 150], description: '参考深圳坂田基地 F1 实景，细化宽幅微凹玻璃立面、连续窗格、金属侧框和多层檐口。两侧附楼、水景和树阵用于表达总部园区空间，属于压缩布局。', reference: { label: '华为官方 · 坂田 F1 实景', url: 'https://www.huawei.com/en/media-center/multimedia/photos/bantian-f1-hq-skyscraper' } },
   { id: 'yungu', name: '坂田 · 天安云谷', english: 'BANTIAN · TIAN AN CLOUD PARK', district: '龙岗', subdistrict: '坂田', tag: '产业园区 · 立体连廊', x: 9, z: -102, height: 24.6, kind: 'yungu', color: '#788fa9', footprint: [14, 15], focusZoom: 4.4, focusOffset: [-100, 125, 130], description: '以坂田天安云谷已建园区的蓝灰玻璃塔楼、竖向边框、水平挑板和错落屋冠为外形参考，组合多栋高层、绿化裙房、步行连廊及开放庭院。园区楼栋数量与间距为示意。', reference: { label: '天安骏业 · 坂田天安云谷', url: 'https://www.szyungu.com/service.shtml' } },
+  { id: 'ganfeng', name: '坂田 · 赣锋科技大厦', english: 'BANTIAN · GANFENG TECHNOLOGY BUILDING', district: '龙岗', subdistrict: '坂田', tag: '坂田 · 研发办公双塔', x: -34, z: -123, height: 18.4, kind: 'ganfeng', color: '#598a94', footprint: [12, 9], focusZoom: 4.4, focusOffset: [72, 115, 155], description: '依据赣锋科技大厦在坂田的项目资料，将研发办公楼表现为两座现代玻璃塔楼、共享低层裙房与入口前场。楼层、体量及场地比例按沙盘尺度压缩，细部并非施工图复刻。', reference: { label: '深圳市规划和自然资源局 · 项目资料', url: 'https://pnr.sz.gov.cn/d-cyyf/homeDetailSeoServlet?id=f9b3cd4a6a13406aa4dbada8af13d5c4' } },
+  { id: 'galaxy-twin', name: '坂田 · 星河双子塔', english: 'BANTIAN · GALAXY TWIN TOWERS', district: '龙岗', subdistrict: '坂田', tag: '坂田 · 双塔地标', x: 48, z: -122, height: 41.2, kind: 'galaxyTwin', color: '#668e9a', footprint: [13, 10], focusZoom: 4.2, focusOffset: [80, 145, 180], description: '两座等高塔楼以圆润的玻璃轮廓和逐层轻微扭转形成挺拔天际线，底部由连续流线型裙房连接。造型参考设计方资料，塔身、裙房和高度按城市沙盘比例简化。', reference: { label: 'AECOM · 深圳星河双子塔', url: 'https://aecom.com/cn/projects/shenzhen-galaxy-twin-towers/' } },
 ];
 
 export const districtLabels = [
@@ -33,6 +35,29 @@ export const districtLabels = [
 ];
 
 export const subdistrictLabels = [{ name: '坂田', english: 'BANTIAN · LONGGANG', x: 10, z: -125 }];
+
+// Ecology anchors follow the schematic mountain and park coordinates in city.js.
+// The labels communicate the connected green spine, not surveyed district boundaries.
+export const ecoLabels = [
+  { name: '凤凰山森林公园', district: '宝安', x: -139, y: 10, z: -78, overview: true },
+  { name: '阳台山森林公园', district: '龙华', x: -103, y: 15, z: -68, overview: true },
+  { name: '塘朗山郊野公园', district: '南山', x: -72, y: 12, z: -54, overview: true },
+  { name: '梅林山郊野公园', district: '福田', x: -40, y: 12, z: -53, overview: true },
+  { name: '银湖山郊野公园', district: '罗湖', x: -8, y: 13, z: -62, overview: true },
+  { name: '梧桐山风景区', district: '罗湖 · 盐田', x: 107, y: 20, z: -67, overview: true },
+  { name: '马峦山郊野公园', district: '坪山', x: 151, y: 16, z: -96, overview: true },
+  { name: '七娘山地质公园', district: '大鹏', x: 192, y: 19, z: -114, overview: true },
+  { name: '光明森林公园', district: '光明', x: -109, y: 8, z: -153 },
+  { name: '园山郊野公园', district: '龙岗', x: 110, y: 9, z: -100 },
+  { name: '三洲田森林公园', district: '盐田', x: 130, y: 11, z: -73 },
+  { name: '莲花山公园', district: '福田', x: 13, y: 6, z: -28 },
+  { name: '笔架山公园', district: '福田', x: 40, y: 7, z: -37 },
+  { name: '大南山公园', district: '南山', x: -94, y: 10, z: -27 },
+  { name: '大沙河公园', district: '南山', x: -70, y: -5, z: -37 },
+  { name: '东湖公园', district: '罗湖', x: 79, y: -5, z: -43 },
+  { name: '仙湖植物园', district: '罗湖', x: 101, y: -5, z: -52 },
+  { name: '深圳湾公园 · 红树林', district: '南山', x: -89, y: -5, z: 17 },
+];
 
 export function seededRandom(seed = 518000) {
   return () => {

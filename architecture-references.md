@@ -12,5 +12,11 @@
 | 盐田 / 盐田港 | [盐田国际官方港区影像](https://www.yict.com.cn/index.html?locale=zh_CN) | 蓝色岸桥、框架支腿、水平吊臂、拉索、码头、堆场与货船 | 表达典型码头设施，岸桥和集装箱数量、装卸状态及船型不对应实时港区 |
 | 龙岗坂田 / 华为总部 F1 | [华为官方 F1 实景照片，摄影来源 Huawei](https://www.huawei.com/en/media-center/multimedia/photos/bantian-f1-hq-skyscraper)、[华为坂田园区介绍](https://digitalpower.huawei.com/resource/public/campus/en/index.html) | 宽幅微凹蓝色玻璃立面、密集窗格、金属侧框及层叠檐口 | 仅 F1 外形为重点参考，附楼、水景和树阵为园区空间示意；未使用东莞松山湖欧洲小镇造型 |
 | 龙岗坂田 / 天安云谷 | [天安骏业运营方资料](https://www.szyungu.com/service.shtml)、[深圳市规划和自然资源局二期项目资料](https://pnr.sz.gov.cn/d-cyyf/homeDetailSeoServlet?id=5FEB5BBCFCC54D6D8B8080C8D2D2D708) | 蓝灰玻璃塔楼、金属边框、水平挑板、屋冠、裙房与立体步行空间 | 参考已建园区外形组织四栋代表塔楼，并非一期或二期楼栋的完整复刻；没有把未来方案当作竣工实景 |
+| 龙岗坂田 / 赣锋科技大厦 | [深圳市规划和自然资源局项目资料](https://pnr.sz.gov.cn/d-cyyf/homeDetailSeoServlet?id=f9b3cd4a6a13406aa4dbada8af13d5c4) | 两栋研发办公楼、蓝绿玻璃幕墙、共享裙房与入口前场 | 依据项目公开信息建立双塔示意，塔身尺寸、层高、场地与幕墙分格均按沙盘比例简化 |
+| 龙岗坂田 / 星河双子塔 | [AECOM 官方项目](https://aecom.com/cn/projects/shenzhen-galaxy-twin-towers/)、[深圳市政府项目介绍](https://www.sz.gov.cn/cn/zjsz/fwts_1_3/tzfw/tzhj/content/post_10533516.html) | 两座等高塔楼、圆润渐扭的玻璃轮廓、连续裙房与顶部收分 | 参考设计方项目外形；塔身结构、楼层、裙房曲面与高度经艺术化压缩，不用于测绘 |
 
 本项目采用可交互的程序化几何重建。建筑的辨识特征参考真实对象，尺寸、朝向、城区间距和相邻环境采用艺术化压缩。既有八处地标的参考来源见 README。全部模型、结构线和场馆内部均随 GLB 导出。
+
+## 山海连城生态节点
+
+主脊沿现有示意绿道标为“鲲鹏径”，西侧标出凤凰山、阳台山、塘朗山、梅林山和银湖山等节点，东侧连接梧桐山、马峦山与七娘山；莲花山、笔架山、东湖、大沙河、仙湖及深圳湾红树林作为公园与滨海支线标注。路线分段与公园连接关系参考[深圳市公园城市建设总体规划暨三年行动计划](https://www.sz.gov.cn/zfgb/2023/gb1272/content/post_10389162.html)。模型坐标、区界归属文字与线路长度为视觉示意，非 GIS 线路或精确行政边界。
