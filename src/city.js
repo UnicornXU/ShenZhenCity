@@ -1,3 +1,4 @@
+import { SkylineShow } from './skyline-show.js';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -19,11 +20,55 @@ function material(color, extra = {}) {
   return new THREE.MeshStandardMaterial({ color, roughness: 0.86, metalness: 0.05, ...extra });
 }
 
+// One continuous height field per mountain keeps trails and silhouettes in agreement.
+function ridgeHeight(hill, x, z) {
+  const u = (x - hill.x) / hill.sx, v = (z - hill.z) / hill.sz;
+  const radius = Math.hypot(u, v);
+  if (radius >= 1) return 0;
+  const angle = Math.atan2(v, u);
+  const folds = Math.cos(3 * angle + hill.phase + radius * 2) * 0.18
+    + Math.sin(5 * angle - hill.phase) * 0.09;
+  const ridgeAxis = u * Math.cos(hill.phase) + v * Math.sin(hill.phase);
+  const across = v * Math.cos(hill.phase) - u * Math.sin(hill.phase);
+  const crest = 0.87 + 0.20 * Math.sin(5 * ridgeAxis + hill.phase) - 0.30 * Math.abs(across);
+  return hill.sy * (1 - radius * radius) * crest * (1 + radius * folds);
+}
+
+function ridgeGeometry(hill) {
+  const positions = [0, ridgeHeight(hill, hill.x, hill.z), 0], indices = [], colors = [];
+  const shade = new THREE.Color();
+  const forest = new THREE.Color('#356854'), crest = new THREE.Color('#acb982');
+  const bands = 9, sides = 32;
+  colors.push(...crest.toArray());
+  for (let band = 1; band <= bands; band++) {
+    for (let i = 0; i < sides; i++) {
+      const angle = i * 2 * Math.PI / sides;
+      const x = hill.sx * band / bands * Math.cos(angle);
+      const z = hill.sz * band / bands * Math.sin(angle);
+      const height = ridgeHeight(hill, hill.x + x, hill.z + z);
+      positions.push(x, height, z);
+      shade.copy(forest).lerp(crest, Math.min(1, height / hill.sy + 0.06 * (1 + Math.sin(angle * 3 + hill.phase))));
+      colors.push(...shade.toArray());
+      const a = 1 + (band - 1) * sides + i;
+      const b = 1 + (band - 1) * sides + (i + 1) % sides;
+      if (band === 1) indices.push(0, b, a);
+      else indices.push(a - sides, b, a, a - sides, b - sides, b);
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
 export class ShenzhenCity {
-  constructor(container, onSelect, onFrame) {
+  constructor(container, onSelect, onFrame, onEcoSelect) {
     this.container = container;
     this.onSelect = onSelect;
     this.onFrame = onFrame;
+    this.onEcoSelect = onEcoSelect;
     this.random = seededRandom();
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color('#e9efeb');
@@ -69,6 +114,7 @@ export class ShenzhenCity {
     }
     this.facades = [];
     this.pickables = [];
+    this.ecoPickables = [];
     this.landmarkGroups = new Map();
     this.raycaster = new THREE.Raycaster();
     this.pointer = new THREE.Vector2();
@@ -123,11 +169,16 @@ export class ShenzhenCity {
     const g = this.layers.terrain;
     this.seaSurfaceY = -0.55;
     this.waterMaterial = material('#347f88', { roughness: 0.46, metalness: 0.12 });
-    const base = new THREE.Mesh(new THREE.BoxGeometry(430, 5, 275), material('#739a91'));
+    const base = new THREE.Mesh(new THREE.BoxGeometry(430, 5, 275), material('#a7b6a4'));
     base.position.set(40, -4.6, -52.5);
     base.receiveShadow = true;
     g.add(base);
-    this.box(g, 40, this.seaSurfaceY - 0.25, -52.5, 430, 0.5, 275, this.waterMaterial, false);
+    const seaOutline = [...shoreline, [-175, 33], [-175, 85], [255, 85], [255, -3]];
+    const sea = new THREE.Mesh(new THREE.ShapeGeometry(shapeFromXZ(seaOutline)), this.waterMaterial);
+    sea.rotation.x = -Math.PI / 2;
+    sea.position.y = this.seaSurfaceY;
+    sea.receiveShadow = true;
+    g.add(sea);
 
     const landGeo = new THREE.ExtrudeGeometry(shapeFromXZ(coast), { depth: 2.6, bevelEnabled: true, bevelSize: 0.9, bevelThickness: 0.5, bevelSegments: 2, steps: 1 });
     landGeo.rotateX(-Math.PI / 2);
@@ -165,32 +216,14 @@ export class ShenzhenCity {
       { name: '园山郊野公园', x: 110, z: -100, sx: 13, sy: 9, sz: 14 },
       { name: '三洲田森林公园', x: 130, z: -73, sx: 14, sy: 11, sz: 13 },
     ];
-    const hillMats = ['#718b68', '#849b72', '#94a77b', '#a4af83'].map(c => material(c, { flatShading: true }));
-    this.hills.forEach((hillData, i) => {
-      const { x, z, sx, sy, sz, name } = hillData;
-      const group = new THREE.Group();
-      group.name = `${name}_山体公园`;
-      group.userData.feature = '山海连城山体与公园示意';
-      const seed = i * 1.7;
-      const base = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 9, 0, Math.PI * 2, 0, Math.PI / 2), hillMats[i % hillMats.length]);
-      base.position.y = sy * 0.36;
-      base.scale.set(sx, sy * 0.83, sz);
-      base.rotation.y = seed;
-      base.castShadow = true;
-      base.receiveShadow = true;
-      group.add(base);
-      // Layered foothills soften the old single-dome silhouette and read as ridgelines.
-      for (let ridge = 0; ridge < 3; ridge++) {
-        const angle = seed + ridge * Math.PI * 2 / 3;
-        const spur = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), hillMats[(i + ridge + 1) % hillMats.length]);
-        spur.position.set(Math.cos(angle) * sx * 0.39, sy * (0.1 + ridge * 0.025), Math.sin(angle) * sz * 0.37);
-        spur.scale.set(sx * 0.53, sy * (0.49 + ridge * 0.035), sz * 0.52);
-        spur.rotation.y = angle;
-        spur.castShadow = true;
-        group.add(spur);
-      }
-      group.position.set(x, LAND_Y, z);
-      this.layers.parks.add(group);
+    const hillside = material('#ffffff', { vertexColors: true, flatShading: true });
+    this.hills.forEach((hill, index) => {
+      hill.phase = index * 1.7;
+      const mesh = new THREE.Mesh(ridgeGeometry(hill), hillside);
+      mesh.name = hill.name;
+      mesh.position.set(hill.x, LAND_Y, hill.z);
+      mesh.receiveShadow = mesh.castShadow = true;
+      this.layers.parks.add(mesh);
     });
     this.makeGreenway();
     const grid = new THREE.GridHelper(1200, 80, '#bdcbc3', '#d8e1da');
@@ -393,7 +426,26 @@ export class ShenzhenCity {
       [-42, -55], [-20, -64], [2, -62], [25, -49], [43, -39], [63, -48],
       [86, -60], [107, -69], [130, -83], [153, -97], [173, -107], [193, -115],
     ].map(([x, z]) => [x, LAND_Y + 0.35, z]);
-    this.curve(parks, route, 0.42, material('#d5c99e'), 180).name = '鲲鹏径_山海连城步道示意';
+    const addEcoRoute = (points, id, name, radius, color, segments) => {
+      const centerline = new THREE.CatmullRomCurve3(points.map(point => new THREE.Vector3(...point)));
+      const samples = centerline.getPoints(segments);
+      for (const point of samples) {
+        let elevation = 0;
+        for (const hill of this.hills) elevation = Math.max(elevation, ridgeHeight(hill, point.x, point.z));
+        point.y += elevation;
+      }
+      const curve = new THREE.CatmullRomCurve3(samples);
+      const visibleRoute = new THREE.Mesh(new THREE.TubeGeometry(curve, segments, radius, 5, false), material(color));
+      parks.add(visibleRoute);
+      visibleRoute.name = name;
+      const hitTarget = new THREE.Mesh(new THREE.TubeGeometry(curve, segments, Math.max(radius * 4, 1.25), 7, false));
+      hitTarget.visible = false; // Still raycastable, omitted from rendering and GLB export.
+      hitTarget.name = `${name}_点击区域`;
+      hitTarget.userData.ecoRouteId = id;
+      parks.add(hitTarget);
+      this.ecoPickables.push(hitTarget);
+    };
+    addEcoRoute(route, 'kunpeng-main', '鲲鹏径_山海连城步道示意', 0.42, '#d5c99e', 180);
     const secondary = [
       [[-104, -66], [-110, -48], [-105, -33], [-94, -27], [-77, -36]],
       [[-38, -54], [-30, -38], [-20, -28], [-3, -29], [12, -28]],
@@ -404,7 +456,8 @@ export class ShenzhenCity {
       [[108, -68], [119, -67], [130, -73], [139, -83]],
     ];
     secondary.forEach((points, i) => {
-      this.curve(parks, points.map(([x, z]) => [x, LAND_Y + 0.26, z]), 0.22, material(i % 2 ? '#e0d5b0' : '#a7b98a'), 40).name = `山海连城_郊野绿道${i + 1}`;
+      const routePoints = points.map(([x, z]) => [x, LAND_Y + 0.26, z]);
+      addEcoRoute(routePoints, `eco-link-${i + 1}`, `山海连城_郊野绿道${i + 1}`, 0.22, i % 2 ? '#e0d5b0' : '#a7b98a', 40);
     });
     const clearings = [
       ['深圳湾公园', -89, 17], ['人才公园', -75, 5], ['莲花山公园', 13, -28],
@@ -427,42 +480,48 @@ export class ShenzhenCity {
   }
 
   makeRoads() {
+    // Roads, paint and paving are flat surfaces. Emit just their top faces.
     const roads = [], markings = [], pavements = [];
+    const quad = (vertices, x, y, z, width, depth) => {
+      const l = x - width / 2, r = x + width / 2;
+      const n = z - depth / 2, f = z + depth / 2;
+      vertices.push(l,y,n, l,y,f, r,y,n, r,y,n, l,y,f, r,y,f);
+    };
     for (let z = -172; z <= 20; z += 16) {
-      for (let x = -162; x <= 230; x += 2) {
-        if (!isLand(x, z + 1.9) || this.reserved(x, z, -3)) continue;
-        const geo = new THREE.BoxGeometry(2.03, 0.11, z === -12 ? 3.2 : 2.1);
-        geo.translate(x, LAND_Y + 0.05, z);
-        roads.push(geo);
-        if (x % 6 === 0) {
-          const line = new THREE.BoxGeometry(1.1, 0.015, 0.12);
-          line.translate(x, LAND_Y + 0.12, z);
-          markings.push(line);
+      let start = null;
+      for (let x = -162; x <= 232; x += 2) {
+        if (x <= 230 && isLand(x, z + 1.9) && !this.reserved(x, z, -3)) {
+          start ??= x;
+          if (x % 6 === 0) quad(markings, x, LAND_Y + 0.13, z, 1.1, 0.12);
+        } else if (start !== null) {
+          quad(roads, (start + x - 2) / 2, LAND_Y + 0.105, z, x - start + 0.03, z === -12 ? 3.2 : 2.1);
+          start = null;
         }
       }
     }
     for (let x = -156; x < 235; x += 16) {
-      for (let z = -177; z < 29; z += 2) {
-        if (!isLand(x + 2, z + 2) || this.reserved(x, z, -3)) continue;
-        const geo = new THREE.BoxGeometry(2, 0.11, 2.03);
-        geo.translate(x, LAND_Y + 0.05, z);
-        roads.push(geo);
+      let start = null;
+      for (let z = -177; z <= 29; z += 2) {
+        if (z < 29 && isLand(x + 2, z + 2) && !this.reserved(x, z, -3)) {
+          start ??= z;
+        } else if (start !== null) {
+          quad(roads, x, LAND_Y + 0.106, (start + z - 2) / 2, 2, z - start + 0.03);
+          start = null;
+        }
       }
     }
     for (let x = -148; x < 229; x += 16) {
       for (let z = -164; z < 26; z += 16) {
-        if (!isLand(x, z + 5) || this.reserved(x, z, -1)) continue;
-        const geo = new THREE.BoxGeometry(12.8, 0.12, 12.8);
-        geo.translate(x, LAND_Y + 0.08, z);
-        pavements.push(geo);
+        if (isLand(x, z + 5) && !this.reserved(x, z, -1)) quad(pavements, x, LAND_Y + 0.14, z, 12.8, 12.8);
       }
     }
-    for (const [geos, color] of [[pavements, '#e0dfcc'], [roads, '#929d94'], [markings, '#e9e6ce']]) {
-      if (!geos.length) continue;
-      const mesh = new THREE.Mesh(mergeGeometries(geos), material(color));
+    for (const [vertices, color] of [[pavements, '#dddbca'], [roads, '#899992'], [markings, '#e9e6ce']]) {
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+      geometry.computeVertexNormals();
+      const mesh = new THREE.Mesh(geometry, material(color));
       mesh.receiveShadow = true;
       this.layers.roads.add(mesh);
-      geos.forEach(geo => geo.dispose());
     }
     const promenade = shoreline.slice(1, -1).map(([x, z]) => [x, LAND_Y + 0.25, z - 2.2]);
     this.curve(this.layers.roads, promenade, 0.6, material('#dcc8a6'), 140);
@@ -561,7 +620,7 @@ export class ShenzhenCity {
   makeLandmarks() {
     const room = new RoomEnvironment();
     const pmrem = new THREE.PMREMGenerator(this.renderer);
-    this.landmarkEnvironment = pmrem.fromScene(room, 0.04);
+    this.landmarkEnvironment = pmrem.fromScene(room, 0.04, 0.1, 100, { size: 64 });
     room.dispose();
     pmrem.dispose();
     for (const item of landmarks) {
@@ -840,8 +899,11 @@ export class ShenzhenCity {
       const rect = this.renderer.domElement.getBoundingClientRect();
       this.pointer.set((e.clientX - rect.left) / rect.width * 2 - 1, -(e.clientY - rect.top) / rect.height * 2 + 1);
       this.raycaster.setFromCamera(this.pointer, this.camera);
-      const hit = this.raycaster.intersectObjects(this.pickables, false)[0];
-      if (hit && this.layers.landmarks.visible) this.onSelect(hit.object.userData.landmarkId);
+      const hits = this.raycaster.intersectObjects([...this.pickables, ...this.ecoPickables], false);
+      const hit = hits[0];
+      if (!hit) return;
+      if (hit.object.userData.ecoRouteId && this.layers.parks.visible) this.onEcoSelect?.({ routeId: hit.object.userData.ecoRouteId });
+      else if (hit.object.userData.landmarkId && this.layers.landmarks.visible) this.onSelect(hit.object.userData.landmarkId);
       start = null;
     });
   }
@@ -857,6 +919,13 @@ export class ShenzhenCity {
     const target = new THREE.Vector3(item.x, item.height * 0.33, item.z);
     const offset = new THREE.Vector3(...(item.focusOffset ?? [100, 104, 160]));
     this.flyTo(target, offset, item.focusZoom ?? 3.1);
+  }
+
+  focusEco(site) {
+    this.selected = null;
+    this.selection.visible = false;
+    const target = new THREE.Vector3(site.x, site.y ?? LAND_Y + 1, site.z);
+    this.flyTo(target, new THREE.Vector3(52, 58, 76), 2.6);
   }
 
   flyTo(target, offset, zoom) {
@@ -898,6 +967,33 @@ export class ShenzhenCity {
     if (name === 'roads') this.layers.traffic.visible = visible;
   }
 
+  startShow() {
+    this.lightShow = new SkylineShow(this);
+    this.grid.visible = false;
+    this.sun.intensity = 0.65;
+    this.hemi.intensity = 0.42;
+    const sky = new THREE.Color('#101829');
+    this.scene.background.copy(sky);
+    this.scene.fog.color.copy(sky);
+    this.setShowView('plaza');
+  }
+
+  setShowView(view) {
+    if (!this.lightShow) return;
+    this.lightShow.view = view;
+    if (view === 'ridge') {
+      this.flyTo(new THREE.Vector3(13, 12, 2), new THREE.Vector3(-38, 58, -194), 2.15);
+    } else {
+      this.flyTo(new THREE.Vector3(2, 17, -3), new THREE.Vector3(-29, 25, 184), 3.15);
+    }
+  }
+
+  endShow() {
+    this.grid.visible = true;
+    this.lightShow?.dispose();
+    this.lightShow = null;
+  }
+
   setTime(hour) {
     this.hour = hour;
     const night = THREE.MathUtils.smoothstep(hour, 17, 21);
@@ -907,12 +1003,12 @@ export class ShenzhenCity {
     this.scene.fog.color.copy(bg);
     this.floorMaterial.color.copy(bg);
     this.grid.material.opacity = 0.25 - night * 0.2;
-    this.waterMaterial.color.copy(new THREE.Color('#8fbbb8').lerp(new THREE.Color('#234b59'), night));
-    this.hemi.intensity = 2.15 - night * 1.35;
+    this.waterMaterial.color.copy(new THREE.Color('#347f88').lerp(new THREE.Color('#234b59'), night));
+    this.hemi.intensity = 1.65 - night * 0.85;
     this.hemi.color.set(night > 0.5 ? '#819fca' : '#ecf5fa');
     this.sun.intensity = 2.6 - night * 2.05;
     this.sun.color.copy(new THREE.Color('#fff2d9').lerp(new THREE.Color('#ffbb7c'), dusk));
-    this.sun.position.set(-65 + dusk * 70, 130 - dusk * 95, 70);
+    this.sun.position.set(-100 + dusk * 70, 115 - dusk * 80, 60);
     this.renderer.toneMappingExposure = 1.1 + night * 0.12;
     this.facades.forEach(mat => { mat.emissiveIntensity = night * (mat.userData.nightGlow ?? 1.7); });
     this.carLightMats.forEach(mat => { mat.emissiveIntensity = night * 0.8; });
@@ -937,6 +1033,7 @@ export class ShenzhenCity {
 
   animate(time) {
     const dt = Math.min((time - this.lastTime) / 1000, 0.05);
+    this.lightShow?.advance(Math.max(0, (time - this.lastTime) / 1000));
     this.lastTime = time;
     if (this.flight) {
       const f = this.flight;

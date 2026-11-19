@@ -36,7 +36,9 @@
   .landmark-detail{max-height:calc(100% - 115px);overflow-y:auto}
 }
 
-.eco-label{position:absolute;left:0;top:0;display:flex;flex-direction:column;gap:2px;padding:5px 8px 5px 10px;white-space:nowrap;border:1px solid #d2dfc4dc;border-radius:5px;background:#f4f8e9e8;color:#496746;box-shadow:0 3px 10px #34552c13;line-height:1.2;pointer-events:none;will-change:transform}
+.eco-label{position:absolute;left:0;top:0;display:flex;flex-direction:column;gap:2px;padding:5px 8px 5px 10px;white-space:nowrap;border:1px solid #d2dfc4dc;border-radius:5px;background:#f4f8e9e8;color:#496746;box-shadow:0 3px 10px #34552c13;line-height:1.2;pointer-events:auto;will-change:transform;cursor:pointer;text-align:left;font-family:inherit}
+.eco-label:hover,.eco-label:focus-visible{background:#e7f0d9;border-color:#78966b;box-shadow:0 4px 14px #34552c24;outline:none}
+.night .eco-label:hover,.night .eco-label:focus-visible{background:#345044;border-color:#9db58a}
 .eco-label:before{content:"";position:absolute;left:4px;top:9px;width:3px;height:3px;border-radius:50%;background:#78945e}
 .eco-label:after{content:"";position:absolute;left:50%;bottom:-6px;width:1px;height:6px;background:#829b70aa}
 .eco-label span{font-size:9px;letter-spacing:.1px;padding-left:3px}
@@ -46,3 +48,18 @@
 .thumb-ganfeng,.thumb-galaxyTwin{background:#e0eaeb;color:#5d8792}
 .legend-route{width:12px!important;height:2px!important;border-radius:0!important;background:#b6ae7c}
 @media(max-width:700px){.eco-label{gap:1px;padding:4px 6px 4px 8px}.eco-label span{font-size:7px}.eco-label small{font-size:5px}.eco-label:before{left:3px;top:7px;width:2px;height:2px}}
+
+.show-controls{position:absolute;left:30px;top:112px;z-index:5}
+#show-toggle,.show-controls button{border:1px solid #809b93;border-radius:5px;background:#fafcf5;color:#305d52;padding:7px 11px;font:inherit;font-size:11px;cursor:pointer}
+#show-program{margin-top:7px;padding:12px;background:#13283bf2;border:1px solid #476177;border-radius:8px;color:#f0e8d9}
+#show-program strong,#show-program span{display:block}
+#show-program strong{font-size:14px}
+#show-program span{font-size:10px;margin:4px 0 10px;color:#b5cbd5}
+#show-program button,.show-mode #show-toggle{background:#243c50;color:#f1f5f4;border-color:#4d6677}
+#show-program button[aria-pressed=true]{background:#ecce93;color:#312c24}
+#show-pause{margin-top:7px}
+.show-mode :is(.scene-caption,.map-labels,.bay-label,.landmark-detail,.scene-legend,.compass){visibility:hidden}
+.show-mode .show-controls{top:25px}
+@media(max-width:700px){.show-controls{left:15px;top:107px}.show-mode .show-controls{top:49px}#show-program{padding:8px}.show-controls button{padding:5px 8px}}
+#show-program a{color:inherit;text-underline-offset:2px}
+#show-program .show-reference{display:block;margin-top:7px;font-size:10px;color:#b5cbd5}

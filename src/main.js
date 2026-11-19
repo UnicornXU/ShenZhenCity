@@ -1,6 +1,5 @@
 import './style.css';
-import { ShenzhenCity } from './city.js';
-import { landmarks, districtLabels, subdistrictLabels, ecoLabels } from './data.js';
+import { landmarks, districtLabels, subdistrictLabels, ecoLabels, ecoRoutes } from './data.js';
 
 const districtFilters = ['全部', ...districtLabels.map(d => d.name), '坂田'];
 
@@ -72,6 +71,12 @@ document.querySelector('#app').innerHTML = `
     <section class="scene-area" aria-label="城市三维浏览器">
       <div id="canvas-container"></div>
       <div class="scene-caption"><span class="scene-index">01 — EXPLORE</span><div>深圳 <span>SHENZHEN</span></div><p>广东 · 中国 <i></i> 艺术化城市模型</p></div>
+      <div class="show-controls"><button id="show-toggle" aria-pressed="false" disabled>开启灯光秀</button>
+        <div id="show-program" hidden><strong>大鹏展翅 · 深圳灯光秀</strong>
+          <span>受 <a href="https://www.thepaper.cn/newsDetail_forward_34463142" target="_blank" rel="noopener noreferrer">APEC 2026 深圳灯光秀</a>启发</span>
+          <div role="group" aria-label="灯光秀选段"><button data-cue="0">湾区潮汐</button><button data-cue="16">大鹏展翅</button><button data-cue="27">金色迎宾</button></div>
+          <button id="show-pause"></button> <button id="show-view">切换山顶全景</button>
+          <a class="show-reference" href="https://feng.ifeng.com/c/8y38VPEyZDO" target="_blank" rel="noopener noreferrer">实拍参考 · 小红书 gladys ↗</a></div></div>
       <div class="scene-badge"><span class="status-dot"></span><span id="scene-status">正在建立城市</span><span class="badge-divider">/</span><span>3D</span></div>
       <div class="map-labels" id="map-labels"></div>
       <div class="bay-label" id="bay-label">深圳湾<span>SHENZHEN BAY</span></div>
@@ -90,8 +95,10 @@ document.querySelector('#app').innerHTML = `
 
 let city;
 let selectedId = null;
+let selectedEcoId = null;
 let labelsVisible = true;
 let buildingsVisible = true;
+let previousShowView = null;
 let tourTimer = null;
 let tourIndex = 0;
 let toastTimer;
@@ -113,6 +120,7 @@ function stopTour() {
 }
 
 function selectLandmark(id, fromTour = false) {
+  closeShow();
   if (!city) return;
   if (!fromTour) stopTour();
   const landmark = landmarks.find(item => item.id === id);
@@ -123,6 +131,7 @@ function selectLandmark(id, fromTour = false) {
     city.setLayer('buildings', true);
   }
   selectedId = id;
+  selectedEcoId = null;
   city.focus(id);
   $$('.landmark-card').forEach(card => {
     card.classList.toggle('selected', card.dataset.landmark === id);
@@ -134,10 +143,30 @@ function selectLandmark(id, fromTour = false) {
   $('#detail-home').addEventListener('click', goHome);
 }
 
-function goHome() {
+function selectEco(item) {
+  closeShow();
   if (!city) return;
   stopTour();
   selectedId = null;
+  selectedEcoId = item.routeId ?? item.id;
+  const site = ecoLabels.find(entry => entry.id === item.id);
+  const route = ecoRoutes.find(entry => entry.id === item.routeId);
+  const detail = site ?? route;
+  if (!detail) return;
+  city.focusEco(detail);
+  $$('.landmark-card').forEach(card => { card.classList.remove('selected'); card.setAttribute('aria-pressed', 'false'); });
+  $('#landmark-detail').innerHTML = `<div class="detail-topline"><span>${detail.district} · ${site ? '山体与公园节点' : '山海连城线路'}</span><button class="icon-button" id="close-detail" aria-label="关闭生态详情">${icon('close')}</button></div><h2>${detail.name}</h2><div class="detail-en">SHENZHEN GREEN CORRIDOR</div><p>${detail.description}</p><div class="detail-bottom"><span>${icon('pin')}${site ? '生态节点' : '线路示意'}</span><button id="detail-home">返回城市全景 ${icon('arrow')}</button></div>`;
+  $('#landmark-detail').hidden = false;
+  $('#close-detail').addEventListener('click', () => { $('#landmark-detail').hidden = true; });
+  $('#detail-home').addEventListener('click', goHome);
+}
+
+function goHome() {
+  closeShow();
+  if (!city) return;
+  stopTour();
+  selectedId = null;
+  selectedEcoId = null;
   $('#landmark-detail').hidden = true;
   $$('.landmark-card').forEach(card => { card.classList.remove('selected'); card.setAttribute('aria-pressed', 'false'); });
   city.home();
@@ -160,15 +189,27 @@ const districts = [...districtLabels, ...subdistrictLabels].map(d => {
   return { node, ...d };
 });
 const ecoNodes = ecoLabels.map(site => {
-  const node = document.createElement('div');
+  const node = document.createElement('button');
+  node.type = 'button';
   node.className = 'eco-label';
   node.innerHTML = `<span>${site.name}</span><small>${site.district} · 山海连城</small>`;
   node.setAttribute('aria-label', `${site.district}：${site.name}，山海连城生态节点`);
+  node.addEventListener('click', () => selectEco(site));
   $('#map-labels').appendChild(node);
   return { node, ...site };
 });
 
+const skylineAtOverview = new Set(['pingan', 'spring', 'galaxy-twin', 'dapeng', 'airport']);
+
 function updateLabels(scene) {
+  if (scene.lightShow) {
+    const phase = Math.floor(scene.lightShow.seconds.value / 12);
+    if (scene.lightShow.phase !== phase) {
+      scene.lightShow.phase = phase;
+      syncShowControls();
+    }
+    return;
+  }
   const occupied = [];
   // Selected labels get priority; bounding estimates avoid per-frame layout reads.
   const ordered = [...labelNodes].sort((a, b) => Number(b.id === selectedId) - Number(a.id === selectedId));
@@ -177,7 +218,8 @@ function updateLabels(scene) {
     const width = l.name.length * 12 + 28;
     const left = p.x - width / 2;
     const top = p.y - 29;
-    const visible = labelsVisible && buildingsVisible && p.visible && left > 4 && left + width < scene.width - 65 && top > 104 && top < scene.height - 75 && !occupied.some(r => left < r.x + r.w && left + width > r.x && top < r.y + 32 && top + 32 > r.y);
+    const showLandmark = scene.camera.zoom >= 1.12 || skylineAtOverview.has(l.id) || l.id === selectedId;
+    const visible = labelsVisible && buildingsVisible && showLandmark && p.visible && left > 4 && left + width < scene.width - 65 && top > 104 && top < scene.height - 75 && !occupied.some(r => left < r.x + r.w && left + width > r.x && top < r.y + 32 && top + 32 > r.y);
     l.node.hidden = !visible;
     if (visible) {
       l.node.style.transform = `translate(${left}px, ${top}px)`;
@@ -186,14 +228,14 @@ function updateLabels(scene) {
     }
   }
   const overviewOnly = scene.camera.zoom < 1.12;
-  const ecoOccupied = [];
+  const ecoOccupied = occupied;
   for (const site of ecoNodes) {
     const p = scene.project(site.x, site.y, site.z);
     const width = site.name.length * 11 + site.district.length * 6 + 49;
     const left = p.x - width / 2;
     const top = p.y - 42;
     const showAtZoom = overviewOnly ? site.overview : true;
-    const visible = labelsVisible && buildingsVisible && !selectedId && showAtZoom && p.visible
+    const visible = labelsVisible && scene.layers.parks.visible && !selectedId && !selectedEcoId && showAtZoom && p.visible
       && left > 4 && left + width < scene.width - 62 && top > 104 && top < scene.height - 78
       && !ecoOccupied.some(r => left < r.x + r.w && left + width > r.x && top < r.y + 38 && top + 38 > r.y);
     site.node.hidden = !visible;
@@ -204,15 +246,71 @@ function updateLabels(scene) {
   }
   for (const d of districts) {
     const p = scene.project(d.x, 1, d.z);
-    d.node.hidden = !labelsVisible || !!selectedId || scene.camera.zoom > 1.45 || p.x < 40 || p.x > scene.width - 70 || p.y < 100 || p.y > scene.height - 70;
+    d.node.hidden = !labelsVisible || !!selectedId || !!selectedEcoId || scene.camera.zoom > 1.45 || p.x < 40 || p.x > scene.width - 70 || p.y < 100 || p.y > scene.height - 70;
+    if (!d.node.hidden) {
+      const left = p.x - 28, width = 84;
+      d.node.hidden = occupied.some(r => left < r.x + r.w && left + width > r.x && p.y < r.y + 34 && p.y + 30 > r.y);
+      if (!d.node.hidden) occupied.push({ x: left, y: p.y, w: width });
+    }
     d.node.style.transform = `translate(${p.x - 28}px, ${p.y}px)`;
   }
   const bay = scene.project(-10, -1, 60);
-  $('#bay-label').hidden = !!selectedId || bay.x < 60 || bay.x > scene.width - 80 || bay.y > scene.height - 65;
+  $('#bay-label').hidden = !!selectedId || !!selectedEcoId || bay.x < 60 || bay.x > scene.width - 80 || bay.y > scene.height - 65;
   $('#bay-label').style.transform = `translate(${bay.x - 50}px, ${bay.y}px)`;
   const angle = Math.atan2(scene.camera.position.x - scene.controls.target.x, scene.camera.position.z - scene.controls.target.z) * 180 / Math.PI;
   $('#compass-needle').setAttribute('transform', `rotate(${-angle} 32 32)`);
 }
+
+function syncShowControls() {
+  const show = city.lightShow;
+  const phase = show.seconds.value < 12 ? '0' : show.seconds.value < 24 ? '16' : '27';
+  for (const button of $$('[data-cue]')) button.setAttribute('aria-pressed', String(button.dataset.cue === phase));
+  $('#show-view').textContent = show.view === 'plaza' ? '切换山顶全景' : '切换广场近景';
+  $('#show-pause').textContent = show.paused ? '继续播放' : '暂停播放';
+}
+
+function closeShow() {
+  if (!previousShowView) return;
+  const previous = previousShowView;
+  previousShowView = null;
+  city.endShow();
+  setTime(previous.hour);
+  city.setLayer('buildings', buildingsVisible);
+  city.flyTo(previous.target, previous.offset, previous.zoom);
+  document.body.classList.remove('show-mode');
+  $('#show-program').hidden = true;
+  $('#show-toggle').textContent = '开启灯光秀';
+  $('#show-toggle').setAttribute('aria-pressed', 'false');
+}
+
+$('#show-toggle').addEventListener('click', () => {
+  if (previousShowView) { closeShow(); return; }
+  stopTour();
+  previousShowView = {
+    hour: city.hour, target: city.controls.target.clone(),
+    offset: city.camera.position.clone().sub(city.controls.target), zoom: city.camera.zoom
+  };
+  city.setLayer('buildings', true);
+  setTime(22);
+  city.startShow();
+  document.body.classList.add('show-mode');
+  $('#show-program').hidden = false;
+  $('#show-toggle').textContent = '退出灯光秀';
+  $('#show-toggle').setAttribute('aria-pressed', 'true');
+  syncShowControls();
+});
+$('#show-view').addEventListener('click', () => {
+  city.setShowView(city.lightShow.view === 'plaza' ? 'ridge' : 'plaza');
+  syncShowControls();
+});
+$('#show-pause').addEventListener('click', () => {
+  city.lightShow.paused = !city.lightShow.paused;
+  syncShowControls();
+});
+$$('[data-cue]').forEach(button => button.addEventListener('click', () => {
+  city.lightShow.seconds.value = Number(button.dataset.cue);
+  syncShowControls();
+}));
 
 function setTime(value) {
   if (!city) return;
@@ -256,8 +354,8 @@ $('#zoom-in').addEventListener('click', () => { stopTour(); city?.zoomBy(1.22); 
 $('#zoom-out').addEventListener('click', () => { stopTour(); city?.zoomBy(1 / 1.22); });
 $('#rotate-view').addEventListener('click', () => { stopTour(); city?.rotateBy(Math.PI / 8); });
 $('#top-view').addEventListener('click', () => { goHome(); city?.overhead(); });
-$('#time-range').addEventListener('input', event => setTime(event.target.value));
-$$('[data-time]').forEach(button => button.addEventListener('click', () => setTime(button.dataset.time)));
+$('#time-range').addEventListener('input', event => { const hour = event.target.value; closeShow(); setTime(hour); });
+$$('[data-time]').forEach(button => button.addEventListener('click', () => { closeShow(); setTime(button.dataset.time); }));
 $('#tour').addEventListener('click', () => {
   if (!city) return;
   if (tourTimer) { stopTour(); return; }
@@ -279,6 +377,7 @@ function toggleLayers(open) {
 $('#layers-nav').addEventListener('click', () => toggleLayers($('#layers-panel').hidden));
 $('#close-layers').addEventListener('click', () => toggleLayers(false));
 $$('[data-layer]').forEach(input => input.addEventListener('change', () => {
+  closeShow();
   if (input.dataset.layer === 'labels') labelsVisible = input.checked;
   else {
     if (input.dataset.layer === 'buildings') { buildingsVisible = input.checked; if (!input.checked) { stopTour(); $('#landmark-detail').hidden = true; } }
@@ -288,7 +387,7 @@ $$('[data-layer]').forEach(input => input.addEventListener('change', () => {
 $('#about-nav').addEventListener('click', () => $('#about-dialog').showModal());
 $('.dialog-close').addEventListener('click', () => $('#about-dialog').close());
 $('#about-done').addEventListener('click', () => $('#about-dialog').close());
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { toggleLayers(false); $('#landmark-detail').hidden = true; stopTour(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeShow(); toggleLayers(false); $('#landmark-detail').hidden = true; stopTour(); } });
 
 $('#export').addEventListener('click', async () => {
   if (!city) return;
@@ -313,10 +412,11 @@ $('#screenshot').addEventListener('click', async () => {
   catch (error) { console.error(error); toast('截图保存失败，请重试'); }
 });
 
-// Allow the loading shell to paint before constructing geometry.
-requestAnimationFrame(() => requestAnimationFrame(() => {
+async function startCity() {
   try {
-    city = new ShenzhenCity($('#canvas-container'), selectLandmark, updateLabels);
+    const { ShenzhenCity } = await import('./city.js');
+    city = new ShenzhenCity($('#canvas-container'), selectLandmark, updateLabels, ({ routeId }) => selectEco({ routeId }));
+    $('#show-toggle').disabled = false;
     $('#building-count').textContent = city.buildingCount;
     $('#tree-count').textContent = city.treeCount;
     $('#scene-status').textContent = '自由探索';
@@ -330,4 +430,6 @@ requestAnimationFrame(() => requestAnimationFrame(() => {
     $('#loading').innerHTML = `${icon('info')}<strong>暂时无法建立三维场景</strong><p>请使用支持 WebGL 2 的浏览器，并开启硬件加速。</p><button class="export-button" onclick="location.reload()">重新加载</button>`;
     for (const control of $$('.view-tools button, #export, #tour, #time-range, [data-time], [data-layer]')) control.disabled = true;
   }
-}));
+}
+
+startCity();

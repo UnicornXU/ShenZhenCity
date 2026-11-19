@@ -3,6 +3,11 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 // Reference-informed geometry, not surveyed architectural/BIM data.
 // Each part batches its materials so facade detail does not add a draw call per rib.
+// Facade ribs and structural beams share topology. Transform one template per shape.
+const unitBox = new THREE.BoxGeometry().toNonIndexed();
+const unitBeam = new THREE.CylinderGeometry(1, 1, 1, 5).toNonIndexed();
+const up = new THREE.Vector3(0, 1, 0);
+
 class Part {
   constructor(name, parent, position = [0, 0, 0]) {
     this.group = new THREE.Group();
@@ -20,19 +25,28 @@ class Part {
     for (const key of Object.keys(geometry.attributes)) if (!['position', 'normal', 'uv'].includes(key)) geometry.deleteAttribute(key);
     if (!geometry.getAttribute('normal')) geometry.computeVertexNormals();
     if (!geometry.getAttribute('uv')) geometry.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(geometry.getAttribute('position').count * 2), 2));
+    this.collect(geometry, mat);
+  }
+
+  collect(geometry, mat) {
     if (!this.meshes.has(mat)) this.meshes.set(mat, []);
     this.meshes.get(mat).push(geometry);
   }
 
-  box(x, y, z, w, h, d, mat) { this.add(new THREE.BoxGeometry(w, h, d), mat, [x, y, z]); }
+  box(x, y, z, w, h, d, mat) {
+    const geometry = unitBox.clone();
+    const transform = new THREE.Matrix4().makeScale(w, h, d).setPosition(x, y, z);
+    this.collect(geometry.applyMatrix4(transform), mat);
+  }
 
   beam(a, b, radius, mat) {
     const start = new THREE.Vector3(...a), end = new THREE.Vector3(...b);
     const delta = end.clone().sub(start);
-    if (delta.length() < 0.00001) return;
-    const geo = new THREE.CylinderGeometry(radius, radius, delta.length(), 5);
-    geo.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), delta.normalize()));
-    this.add(geo, mat, start.add(end).multiplyScalar(0.5).toArray());
+    const length = delta.length();
+    if (length < 0.00001) return;
+    const rotation = new THREE.Quaternion().setFromUnitVectors(up, delta.normalize());
+    const matrix = new THREE.Matrix4().compose(start.add(end).multiplyScalar(0.5), rotation, new THREE.Vector3(radius, length, radius));
+    this.collect(unitBeam.clone().applyMatrix4(matrix), mat);
   }
 
   line(points, mat, closed = false) {

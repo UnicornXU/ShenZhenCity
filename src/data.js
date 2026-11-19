@@ -39,24 +39,24 @@ export const subdistrictLabels = [{ name: '坂田', english: 'BANTIAN · LONGGAN
 // Ecology anchors follow the schematic mountain and park coordinates in city.js.
 // The labels communicate the connected green spine, not surveyed district boundaries.
 export const ecoLabels = [
-  { name: '凤凰山森林公园', district: '宝安', x: -139, y: 10, z: -78, overview: true },
-  { name: '阳台山森林公园', district: '龙华', x: -103, y: 15, z: -68, overview: true },
-  { name: '塘朗山郊野公园', district: '南山', x: -72, y: 12, z: -54, overview: true },
-  { name: '梅林山郊野公园', district: '福田', x: -40, y: 12, z: -53, overview: true },
-  { name: '银湖山郊野公园', district: '罗湖', x: -8, y: 13, z: -62, overview: true },
-  { name: '梧桐山风景区', district: '罗湖 · 盐田', x: 107, y: 20, z: -67, overview: true },
-  { name: '马峦山郊野公园', district: '坪山', x: 151, y: 16, z: -96, overview: true },
-  { name: '七娘山地质公园', district: '大鹏', x: 192, y: 19, z: -114, overview: true },
-  { name: '光明森林公园', district: '光明', x: -109, y: 8, z: -153 },
-  { name: '园山郊野公园', district: '龙岗', x: 110, y: 9, z: -100 },
-  { name: '三洲田森林公园', district: '盐田', x: 130, y: 11, z: -73 },
-  { name: '莲花山公园', district: '福田', x: 13, y: 6, z: -28 },
-  { name: '笔架山公园', district: '福田', x: 40, y: 7, z: -37 },
-  { name: '大南山公园', district: '南山', x: -94, y: 10, z: -27 },
-  { name: '大沙河公园', district: '南山', x: -70, y: -5, z: -37 },
-  { name: '东湖公园', district: '罗湖', x: 79, y: -5, z: -43 },
-  { name: '仙湖植物园', district: '罗湖', x: 101, y: -5, z: -52 },
-  { name: '深圳湾公园 · 红树林', district: '南山', x: -89, y: -5, z: 17 },
+  { id: 'fenghuang', name: '凤凰山森林公园', district: '宝安', x: -139, y: 10, z: -78, overview: true, description: '宝安西部重要郊野山体，森林步道连接山麓公园与登山游径，是西部山脊节点。' },
+  { id: 'yangtai', name: '阳台山森林公园', district: '龙华', x: -103, y: 15, z: -68, overview: true, description: '横跨宝安、龙华与南山的连续山体，步道向城市公园与绿道延伸。' },
+  { id: 'tanglang', name: '塘朗山郊野公园', district: '南山', x: -72, y: 12, z: -54, overview: true, description: '南山北部郊野山地，通过山径与大沙河及周边绿地相接。' },
+  { id: 'meilin', name: '梅林山郊野公园', district: '福田', x: -40, y: 12, z: -53, overview: true, description: '福田北部连续山体，与塘朗山、银湖山构成中部绿色屏障。' },
+  { id: 'yinhu', name: '银湖山郊野公园', district: '罗湖', x: -8, y: 13, z: -62, overview: true, description: '福田、罗湖与龙华交界的郊野山体，是中部山海连接的过渡段。' },
+  { id: 'wutong', name: '梧桐山风景区', district: '罗湖 · 盐田', x: 107, y: 20, z: -67, overview: true, description: '深圳东部重要山地自然空间，向西连接银湖山，向东南连接三洲田与海岸。' },
+  { id: 'maluan', name: '马峦山郊野公园', district: '坪山', x: 151, y: 16, z: -96, overview: true, description: '坪山东部山地公园，以山林、溪谷与瀑布景观为特色。' },
+  { id: 'qiniang', name: '七娘山地质公园', district: '大鹏', x: 192, y: 19, z: -114, overview: true, description: '大鹏半岛南部火山地貌山体，与海岸和地质遗迹共同构成东部山海节点。' },
+  { id: 'guangming-forest', name: '光明森林公园', district: '光明', x: -109, y: 8, z: -153, description: '光明北部森林与郊野休闲空间，作为西北方向支线节点与阳台山相接。' },
+  { id: 'yuanshan', name: '园山郊野公园', district: '龙岗', x: 110, y: 9, z: -100, description: '龙岗东部山地郊野公园，连接周边绿道并向坪山延伸。' },
+  { id: 'sanzhoutian', name: '三洲田森林公园', district: '盐田', x: 130, y: 11, z: -73, description: '盐田山地森林与水库周边游憩区域，连接梧桐山与东部海岸。' },
+  { id: 'lianhuashan', name: '莲花山公园', district: '福田', x: 13, y: 6, z: -28, description: '深圳中心城区城市公园，与笔架山、中心公园及福田绿道相连。' },
+  { id: 'bijiashan', name: '笔架山公园', district: '福田', x: 40, y: 7, z: -37, description: '福田北部城市山体公园，步行绿道连接莲花山及中心城区公园网络。' },
+  { id: 'dananshan', name: '大南山公园', district: '南山', x: -94, y: 10, z: -27, description: '南山半岛城市山体，与深圳湾公园和南山滨海绿道形成西南山海节点。' },
+  { id: 'dashahe', name: '大沙河公园', district: '南山', x: -70, y: -5, z: -37, description: '沿大沙河展开的带状城市公园，连接塘朗山周边绿地与深圳湾海岸。' },
+  { id: 'donghu', name: '东湖公园', district: '罗湖', x: 79, y: -5, z: -43, description: '罗湖东部大型城市公园，与梧桐山、仙湖植物园及周边绿地相连。' },
+  { id: 'xianhu', name: '仙湖植物园', district: '罗湖', x: 101, y: -5, z: -52, description: '梧桐山南麓植物园与自然教育空间，连接东湖公园、梧桐山和周边绿道。' },
+  { id: 'shenzhen-bay', name: '深圳湾公园 · 红树林', district: '南山', x: -89, y: -5, z: 17, description: '沿深圳湾海岸展开的滨海公园与红树林湿地，连接城市绿道和海岸栈道。' },
 ];
 
 export function seededRandom(seed = 518000) {
@@ -65,3 +65,15 @@ export function seededRandom(seed = 518000) {
     return seed / 4294967296;
   };
 }
+
+
+export const ecoRoutes = [
+  { id: 'kunpeng-main', name: '鲲鹏径 · 山海连城主脊', district: '跨区生态主脊', x: 20, y: 2, z: -63, description: '以示意路线串联凤凰山、阳台山、塘朗山、梅林山、银湖山、梧桐山、马峦山至七娘山，表达深圳西部—中部—东部山系的连续关系。线路为艺术化场景中的概念示意，不代表官方步道实测轨迹。' },
+  { id: 'eco-link-1', x: -104, y: 2, z: -48, name: '阳台山—塘朗山连接段', district: '宝安 · 龙华 · 南山', description: '展示阳台山南向山地与塘朗山郊野空间之间的生态连接关系。' },
+  { id: 'eco-link-2', x: -12, y: 2, z: -34, name: '梅林山—莲花山连接段', district: '福田', description: '展示梅林山郊野空间向莲花山和福田城市公园网络延伸的连接关系。' },
+  { id: 'eco-link-3', x: 108, y: 2, z: -43, name: '梧桐山—东湖公园连接段', district: '罗湖', description: '展示梧桐山南侧山体与东湖、仙湖一带城市公园的联系。' },
+  { id: 'eco-link-4', x: 176, y: 2, z: -81, name: '马峦山—大鹏连接段', district: '坪山 · 大鹏', description: '展示马峦山郊野空间向大鹏半岛山地与海岸方向延伸的生态联系。' },
+  { id: 'eco-link-5', x: -109, y: 2, z: -108, name: '阳台山—光明森林公园连接段', district: '龙华 · 光明', description: '展示阳台山北侧山地与光明森林公园之间的西北向支线关系。' },
+  { id: 'eco-link-6', x: 99, y: 2, z: -85, name: '梧桐山—园山连接段', district: '罗湖 · 龙岗', description: '展示梧桐山方向与龙岗园山郊野公园之间的东部山地联系。' },
+  { id: 'eco-link-7', x: 125, y: 2, z: -70, name: '梧桐山—三洲田连接段', district: '盐田', description: '展示梧桐山、三洲田森林公园及东部山地绿道之间的连接关系。' },
+];
